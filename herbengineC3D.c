@@ -12,6 +12,10 @@
 // each face has a value that states if it's neighbour is occupied,
 // if it is, don't render it
 
+// update neighbours value everytime we add a cube or remove a cube
+// - for each cube check if it's nearby, then check which faces are now/are no longer a neighbour to the new cube or empty space
+// neighbour value is a 32bit int, each bit represents a face, 1 means it has a neighbour, 0 it does not
+
 // qsort sorts faces by r, not squares
 
 //TODO: other blocks and terrain generation
