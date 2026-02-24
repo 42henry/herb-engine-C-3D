@@ -7,12 +7,14 @@
 #include <assert.h>
 #include <time.h>
 
+//TODO: only dont draw a square if ALL zs are negative
+
 // TODO: fix setting whether or not a face has a neighbour...
     // this is taking a million years to load the world cos of this
 
 // TODO: fix fill squares to accomodate for when the ys of the square are too close
 
-// TODO: fix collisions
+// TODO: fix collisions - you can jump and see into a cube
 
 //TODO: other blocks and terrain generation
 
@@ -27,8 +29,8 @@
 
 /* ----------------------- defines --------------------- */
 
-#define WIDTH  960
-#define HEIGHT 540
+#define WIDTH  1920
+#define HEIGHT 1080
 
 #define WINDOW_SCALE 2
 
@@ -181,8 +183,8 @@ static cubes_t hand_cubes = {0};
 
 static vec3_t camera_pos = {0};
 
-static int player_width = CUBE_WIDTH / 2;
-static int player_height = CUBE_WIDTH / 2;
+static int player_width = 0;
+static int player_height = 0;
 
 static int speed = 0;
 static int walk_speed = 0;
@@ -193,7 +195,7 @@ static int frame = 0;
 static int toggle = 0;
 
 static vec2_t mouse = {0};
-static float mouse_sensitivity = 0.005f;
+static float mouse_sensitivity = 0;
 static float x_rotation = 0;
 static float y_rotation = 0;
 static int mouse_left_click = 0;
@@ -207,12 +209,12 @@ static int keys[256] = {0};
 static unsigned char w, a, s, d, shift, space, control, escape;
 static unsigned char one, two, three, four, five, six, seven, eight, nine;
 
-static int gravity = -10;
+static int gravity = 0;
 static int jump = 0;
 
-static colour_t red = {255, 0, 0};
-static colour_t green = {0, 255, 0};
-static colour_t blue = {0, 0, 255};
+static colour_t red = {0};
+static colour_t green = {0};
+static colour_t blue = {0};
 
 static colour_t texture[SQUARES_PER_FACE] = {0};
 texture_t *grass_texture = NULL;
@@ -318,7 +320,7 @@ void init_stuff() {
 	camera_pos.y = 300;
 	camera_pos.z = 100;
 
-	player_width = CUBE_WIDTH / 2;
+	player_width = CUBE_WIDTH / 3;
 	player_height = CUBE_WIDTH / 2;
 
 	hold_mouse = 1;
@@ -357,15 +359,15 @@ void init_stuff() {
 	//render_hand();
 
 	// setup the world:
-	for (int i = -5; i < 30; i++) {
-		for (int j = 0; j < 30; j++) {
+	for (int i = -5; i < 20; i++) {
+		for (int j = 0; j < 20; j++) {
 			add_cube_to_cubes_array((vec3_t){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, grass_texture, &world_cubes);
 		}
 	}
 
-	for (int k = 1; k < 50; k++) {
-		for (int i = -5; i < 30; i++) {
-			for (int j = 0; j < 30; j++) {
+	for (int k = 1; k < 20; k++) {
+		for (int i = -5; i < 20; i++) {
+			for (int j = 0; j < 20; j++) {
 				add_cube_to_cubes_array((vec3_t){50 + (i * CUBE_WIDTH), 50 - (k * CUBE_WIDTH), 10 + (j * CUBE_WIDTH)}, stone_texture, &world_cubes);
 			}
 		}
@@ -625,10 +627,8 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 
 void clear_screen(colour_t colour) {
 	uint32_t c = pack_colour_to_uint32(&colour);
-	for (int x = 0; x < WIDTH; x++) {
-		for (int y = 0; y < HEIGHT; y++) {
-			pixels[y * WIDTH + x] = c;
-		}
+	for (int i = 0; i < WIDTH * HEIGHT; i++) {
+		pixels[i] = c;
 	}
 	return;
 }

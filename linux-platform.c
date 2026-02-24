@@ -1,6 +1,8 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#include <string.h>
+
 #include "herbengineC3D.c"
 
 int main() {
@@ -43,6 +45,18 @@ int main() {
     // Create a graphics context
     GC gc = XCreateGC(display, window, 0, NULL);
 
+	// --- Load a large bold font (72px) ---
+	XFontStruct *font = XLoadQueryFont(display,
+		"-misc-fixed-bold-r-normal--72-*-*-*-*-*-*-*");
+
+	if (!font) {
+		font = XLoadQueryFont(display, "fixed"); // fallback
+	}
+
+	if (font) {
+		XSetFont(display, gc, font->fid);
+	}
+
     // Create an XImage for pixel manipulation
     XImage *image = XCreateImage(display, DefaultVisual(display, screen), DefaultDepth(display, screen), ZPixmap,
                                  0, (char *)malloc(WIDTH * HEIGHT * 4), WIDTH, HEIGHT, 32, 0);
@@ -71,6 +85,12 @@ int main() {
     nine     = XKeysymToKeycode(display, XK_9);
 
 	clock_gettime(CLOCK_MONOTONIC, &last);
+
+	// --- FPS counter state ---
+	int frame_count = 0;
+	int fps_display = 0;
+	struct timespec fps_timer;
+	clock_gettime(CLOCK_MONOTONIC, &fps_timer);
 
 	// ENTRY POINT
 	while(1) {
@@ -145,8 +165,39 @@ int main() {
 		// --- Update ---
 		update();
 
+		// --- FPS update ---
+		frame_count++;
+
+		struct timespec fps_now;
+		clock_gettime(CLOCK_MONOTONIC, &fps_now);
+
+		long fps_elapsed =
+			(fps_now.tv_sec  - fps_timer.tv_sec)  * 1000000000L +
+			(fps_now.tv_nsec - fps_timer.tv_nsec);
+
+		if (fps_elapsed >= 1000000000L) {
+			fps_display = frame_count;
+			frame_count = 0;
+			fps_timer = fps_now;
+		}
+
 		// --- Render ---
 		XPutImage(display, window, gc, image, 0, 0, 0, 0, WIDTH, HEIGHT);
+
+		// --- Draw FPS ---
+		char fps_text[32];
+		sprintf(fps_text, "FPS: %d", fps_display);
+
+		// Shadow
+		XSetForeground(display, gc, BlackPixel(display, screen));
+		XDrawString(display, window, gc, 14, 84,
+					fps_text, strlen(fps_text));
+
+		// Main text
+		XSetForeground(display, gc, WhitePixel(display, screen));
+		XDrawString(display, window, gc, 10, 80,
+					fps_text, strlen(fps_text));
+
 		XFlush(display);
 
 		// --- Frame timing ---
