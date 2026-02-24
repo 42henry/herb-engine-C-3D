@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: make cube struct, with 6 faces (each face is a struct with an r (dist to camera), and the squares, and a neighbours value)
+//TODO: 
 // for each cube, only render the 3 faces with the smallest rs
 // each face has a value that states if it's neighbour is occupied,
 // if it is, don't render it
@@ -15,8 +15,6 @@
 // update neighbours value everytime we add a cube or remove a cube
 // - for each cube check if it's nearby, then check which faces are now/are no longer a neighbour to the new cube or empty space
 // neighbour value is a 32bit int, each bit represents a face, 1 means it has a neighbour, 0 it does not
-
-// qsort sorts faces by r, not squares
 
 //TODO: other blocks and terrain generation
 
@@ -31,8 +29,8 @@
 
 /* ----------------------- defines --------------------- */
 
-#define WIDTH  3000
-#define HEIGHT 2000
+#define WIDTH  1920
+#define HEIGHT 1080
 
 #define FOV 2
 
@@ -75,6 +73,7 @@ typedef struct {
 
 typedef struct {
 	face_t *items;
+	uint32_t neighbours;
 	int count;
 } faces_t;
 
@@ -397,7 +396,7 @@ void update_pixels() {
 
 	draw_all_faces();
 
-	//draw_cursor();
+	draw_cursor();
 	//draw_hand();
 	//draw_hotbar();
 
@@ -570,11 +569,17 @@ void render_cubes() {
 
 	int closest_r = 99999999;
 	cube_highlighted = -1;
+	int draw_highlight_index = -1;
 
 	draw_faces.count = 0;
 
 	// for each cube
 	for (int i = 0; i < world_cubes.count; i++) {
+
+		// find the 3 faces closest to camera and only render those
+		// top four vertex coords, find closest
+		// compare that coord to the coord along the edge, find closest
+		// then take the 3 faces adjacent to that vertex
 
 		// for each face of the cube
 		for (int j = 0; j < 6; j++) {
@@ -675,6 +680,7 @@ void render_cubes() {
 					// 3 = back
 					// 4 = right
 					// 5 = bottom
+					draw_highlight_index = draw_faces.count;
 				}
 			}
 					
@@ -682,26 +688,25 @@ void render_cubes() {
 		}
 	}
 
-	// TODO:
-	//if (cube_highlighted > -1) {
-		//// highlight square under cursor:
-		//for (int i = 0; i < SQUARES_PER_CUBE; i++) {
-			//colour_t colour = unpack_colour_from_uint32(draw_faces.items[i].colour);
-			//colour.r = (colour.r + 100);
-			//if (colour.r < 100) {
-				//colour.r = 255;
-			//}
-			//colour.g = (colour.g + 100);
-			//if (colour.g < 100) {
-				//colour.g = 255;
-			//}
-			//colour.b = (colour.b + 100);
-			//if (colour.b < 100) {
-				//colour.b = 255;
-			//}
-			//draw_faces.items[i].colour = pack_colour_to_uint32(&colour);
-		//}
-	//}
+	// highlight cube
+	if (draw_highlight_index > -1) {
+		for (int k = 0; k < SQUARES_PER_FACE; k++) {
+			colour_t colour = unpack_colour_from_uint32(draw_faces.items[draw_highlight_index].squares[k].colour);
+			colour.r = (colour.r + 100);
+			if (colour.r < 100) {
+				colour.r = 255;
+			}
+			colour.g = (colour.g + 100);
+			if (colour.g < 100) {
+				colour.g = 255;
+			}
+			colour.b = (colour.b + 100);
+			if (colour.b < 100) {
+				colour.b = 255;
+			}
+			draw_faces.items[draw_highlight_index].squares[k].colour =  pack_colour_to_uint32(&colour);
+		}
+	}
 
 	// sort the squares based on their distance to the camera
 	qsort(draw_faces.items, draw_faces.count, sizeof(face_t), compare_faces);
@@ -1042,94 +1047,93 @@ void draw_rect(vec3_t top_left, int width, int height, colour_t colour) {
 }
 
 void place_cube(int index, texture_t *texture) {
-	//vec3_t pos = {0};
-	//pos.x = world_cubes.items[index].coords[0].x;
-	//pos.y = world_cubes.items[index].coords[0].y;
-	//pos.z = world_cubes.items[index].coords[0].z;
-	//switch (cube_highlighted) {
-		//// front
-		//case 0: {
-			//pos.z -= CUBE_WIDTH;
-			//break;
-		//}
-		//// back
-		//case 1: {
-			//pos.z += CUBE_WIDTH;
-			//break;
-		//}
-		//// left
-		//case 2: {
-		    //pos.x -= CUBE_WIDTH;
-			//break;
-		//}
-		//// right
-		//case 3: {
-		    //pos.x += CUBE_WIDTH;
-			//break;
-		//}
-		//// top
-		//case 4: {
-		    //pos.y += CUBE_WIDTH;
-			//break;
-		//}
-		//// bottom
-		//case 5: {
-		    //pos.y -= CUBE_WIDTH;
-			//break;
-		//}
-	//}
-	//int x1 = pos.x;
-	//int y1 = pos.y;
-	//int z1 = pos.z;
-//
-	//// x2 = bottom right back
-	//int x2 = x1 + CUBE_WIDTH;	
-	//int y2 = y1 - CUBE_WIDTH;	
-	//int z2 = z1 + CUBE_WIDTH;
-//
-	//camera_pos.y -= CUBE_WIDTH;
-	//// player_x1 = top left front
-	//int player_x1 = camera_pos.x - player_width;
-	//int player_y1 = camera_pos.y + player_width;
-	//int player_z1 = camera_pos.z - player_width;
-//
-	//// player_x1 = bottom right back
-	//int player_x2 = camera_pos.x + player_width;
-	//int player_y2 = camera_pos.y - player_width;
-	//int player_z2 = camera_pos.z + player_width;
-//
-	//int x_collision = 0;
-	//int y_collision = 0;
-	//int z_collision = 0;
-	//if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
-		//// xs overlap
-		//x_collision = 1;
-	//}
-	//if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
-		//// ys overlap
-		//y_collision = 1;
-	//}
-	//if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
-		//// zs overlap
-		//z_collision = 1;
-	//}
-	//camera_pos.y += CUBE_WIDTH;
-	//if (x_collision && y_collision && z_collision) {
-		//return;
-	//}
-//
-	//add_cube_to_cubes_array(pos, texture, &world_cubes);
+	vec3_t pos = {0};
+	pos.x = world_cubes.items[index].faces[0].squares[0].coords[0].x;
+	pos.y = world_cubes.items[index].faces[0].squares[0].coords[0].y;
+	pos.z = world_cubes.items[index].faces[0].squares[0].coords[0].z;
+	switch (cube_highlighted) {
+		// top
+		case 0: {
+		    pos.y += CUBE_WIDTH;
+			break;
+		}
+		// front
+		case 1: {
+			pos.z -= CUBE_WIDTH;
+			break;
+		}
+		// left
+		case 2: {
+		    pos.x -= CUBE_WIDTH;
+			break;
+		}
+		// back
+		case 3: {
+			pos.z += CUBE_WIDTH;
+			break;
+		}
+		// right
+		case 4: {
+		    pos.x += CUBE_WIDTH;
+			break;
+		}
+		// bottom
+		case 5: {
+		    pos.y -= CUBE_WIDTH;
+			break;
+		}
+	}
+	int x1 = pos.x;
+	int y1 = pos.y;
+	int z1 = pos.z;
+
+	// x2 = bottom right back
+	int x2 = x1 + CUBE_WIDTH;	
+	int y2 = y1 - CUBE_WIDTH;	
+	int z2 = z1 + CUBE_WIDTH;
+
+	camera_pos.y -= CUBE_WIDTH;
+	// player_x1 = top left front
+	int player_x1 = camera_pos.x - player_width;
+	int player_y1 = camera_pos.y + player_width;
+	int player_z1 = camera_pos.z - player_width;
+
+	// player_x1 = bottom right back
+	int player_x2 = camera_pos.x + player_width;
+	int player_y2 = camera_pos.y - player_width;
+	int player_z2 = camera_pos.z + player_width;
+
+	int x_collision = 0;
+	int y_collision = 0;
+	int z_collision = 0;
+	if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
+		// xs overlap
+		x_collision = 1;
+	}
+	if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
+		// ys overlap
+		y_collision = 1;
+	}
+	if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
+		// zs overlap
+		z_collision = 1;
+	}
+	camera_pos.y += CUBE_WIDTH;
+	if (x_collision && y_collision && z_collision) {
+		return;
+	}
+
+	add_cube_to_cubes_array(pos, texture, &world_cubes);
 	return;
 }
 
 void remove_cube(int index) {
-//
-	//int count = index;
-	//for (int i = index + SQUARES_PER_CUBE; i < world_cubes.count; i++) {
-		//world_cubes.items[count] = world_cubes.items[i];
-		//count++;	
-	//}
-	//world_cubes.count -= SQUARES_PER_CUBE;
+	int count = index;
+	for (int i = index + 1; i < world_cubes.count; i++) {
+		world_cubes.items[count] = world_cubes.items[i];
+		count++;	
+	}
+	world_cubes.count --;
 	return;
 }
 
