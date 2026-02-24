@@ -2,7 +2,20 @@
 #include <X11/Xutil.h>
 
 #include "herbengineC3D.c"
+uint32_t *scaled_pixels = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4);
 
+XImage *scaled_image = XCreateImage(
+    display,
+    DefaultVisual(display, screen),
+    DefaultDepth(display, screen),
+    ZPixmap,
+    0,
+    (char *)scaled_pixels,
+    WINDOW_WIDTH,
+    WINDOW_HEIGHT,
+    32,
+    0
+);
 int main() {
     // Open X display
     Display *display = XOpenDisplay(NULL);
@@ -147,34 +160,37 @@ int main() {
 		update();
 
 		// --- Render ---
-		// Get actual window size
-		XWindowAttributes attr;
-		XGetWindowAttributes(display, window, &attr);
-
-		int win_w = attr.width;
-		int win_h = attr.height;
-
-		// Maintain aspect ratio
-		float scale_x = (float)win_w / WIDTH;
-		float scale_y = (float)win_h / HEIGHT;
+		// --- Nearest neighbor scaling ---
+		float scale_x = (float)WINDOW_WIDTH / WIDTH;
+		float scale_y = (float)WINDOW_HEIGHT / HEIGHT;
 		float scale   = scale_x < scale_y ? scale_x : scale_y;
 
-		int draw_w = (int)(WIDTH * scale);
-		int draw_h = (int)(HEIGHT * scale);
+		int draw_w = WIDTH * scale;
+		int draw_h = HEIGHT * scale;
 
-		int offset_x = (win_w - draw_w) / 2;
-		int offset_y = (win_h - draw_h) / 2;
+		int offset_x = (WINDOW_WIDTH - draw_w) / 2;
+		int offset_y = (WINDOW_HEIGHT - draw_h) / 2;
 
-		// Clear background (black bars)
-		// XSetForeground(display, gc, BlackPixel(display, screen));
-		// XFillRectangle(display, window, gc, 0, 0, win_w, win_h);
+		// Clear screen
+		//memset(scaled_pixels, 0, WINDOW_WIDTH * WINDOW_HEIGHT * 4);
 
-		// Scale + draw
+		// Scale pixels
+		for (int y = 0; y < draw_h; y++) {
+			int src_y = y / scale;
+			for (int x = 0; x < draw_w; x++) {
+				int src_x = x / scale;
+
+				scaled_pixels[(y + offset_y) * WINDOW_WIDTH + (x + offset_x)] =
+					pixels[src_y * WIDTH + src_x];
+			}
+		}
+
+		// Draw scaled image
 		XPutImage(display, window, gc,
-				  image,
+				  scaled_image,
 				  0, 0,
-				  offset_x, offset_y,
-				  draw_w, draw_h);
+				  0, 0,
+				  WINDOW_WIDTH, WINDOW_HEIGHT);
 
 		XFlush(display);
 
