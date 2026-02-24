@@ -37,7 +37,7 @@
 #define CM_TO_PIXELS 10
 #define WIDTH_IN_CM ((WIDTH) / (CM_TO_PIXELS))
 
-#define MAX_CUBES 1000
+#define MAX_CUBES 10000
 
 #define CUBE_WIDTH (10 * CM_TO_PIXELS)
 #define TEXTURE_WIDTH 5
@@ -69,6 +69,7 @@ typedef struct {
 typedef struct {
 	square_t squares[SQUARES_PER_FACE];
 	int r; // distance from camera
+	int dir; // top bottom left right etc
 } face_t;
 
 typedef struct {
@@ -138,6 +139,7 @@ static void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t
 static void remove_cube(int index);
 static void place_cube(int index, texture_t *texture);
 static int compare_faces(const void *one, const void *two);
+static int compare_faces_reverse(const void *one, const void *two);
 
 // input
 static void handle_input();
@@ -348,8 +350,8 @@ void init_stuff() {
 
 	// setup the world:
 	colour_t c = blue;
-	for (int i = -5; i < 8; i++) {
-		for (int j = 0; j < 8; j++) {
+	for (int i = -5; i < 30; i++) {
+		for (int j = 0; j < 30; j++) {
 			add_cube_to_cubes_array((vec3_t){50 + (i * CUBE_WIDTH), 50, 10 + (j * CUBE_WIDTH)}, grass_texture, &world_cubes);
 		}
 	}
@@ -543,12 +545,24 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 		}
 	}
 
+    // TODO: create enum for this
 	cube.faces[0] = top;
+	cube.faces[0].dir = 0;
+
 	cube.faces[1] = front;
+	cube.faces[1].dir = 1;
+
 	cube.faces[2] = left;
+	cube.faces[2].dir = 2;
+
 	cube.faces[3] = back;
+	cube.faces[3].dir = 3;
+
 	cube.faces[4] = right;
+	cube.faces[4].dir = 4;
+
 	cube.faces[5] = bottom;
+	cube.faces[5].dir = 5;
 
 	array->items[array->count++] = cube;
 
@@ -576,22 +590,42 @@ void render_cubes() {
 	// for each cube
 	for (int i = 0; i < world_cubes.count; i++) {
 
-		// find the 3 faces closest to camera and only render those
-		// top four vertex coords, find closest
-		// compare that coord to the coord along the edge, find closest
-		// then take the 3 faces adjacent to that vertex
-
 		// for each face of the cube
 		for (int j = 0; j < 6; j++) {
-			int pos_highlight = 0;
 
-			// used	for distance to camera
-			int x1 = 0;
-			int y1 = 0;
-			int z1 = 0;
+			// find the 3 faces closest to the camera
+			face_t face = world_cubes.items[i].faces[j];
+
+			// top left coord
+			int x1 = face.squares[0].coords[0].x - camera_pos.x;
+			int y1 = face.squares[0].coords[0].y - camera_pos.y;
+			int z1 = face.squares[0].coords[0].z - camera_pos.z;
+
+			// bottom right coord
+			x1 += face.squares[SQUARES_PER_FACE - 1].coords[0].x - camera_pos.x;
+			y1 += face.squares[SQUARES_PER_FACE - 1].coords[0].y - camera_pos.y;
+			z1 += face.squares[SQUARES_PER_FACE - 1].coords[0].z - camera_pos.z;
+
+			x1 /= 2;
+			y1 /= 2;
+			z1 /= 2;
+
+			// calc distance to camera
+			int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
+			world_cubes.items[i].faces[j].r = r;
+	    }
+
+		// sort the faces based on their distance to the camera
+		qsort(&world_cubes.items[i].faces, 6, sizeof(face_t), compare_faces_reverse);
+
+		for (int j = 0; j < 3; j++) {
+
+			int pos_highlight = 0;
 
 			face_t face = world_cubes.items[i].faces[j];
 			face_t new_face = {0};
+			new_face.r = face.r;
+			new_face.dir = face.dir;
 
 			// for each square of each face of the cube
 			for (int k = 0; k < SQUARES_PER_FACE; k++) {
@@ -605,22 +639,6 @@ void render_cubes() {
 					pos.x -= camera_pos.x;
 					pos.y -= camera_pos.y;
 					pos.z -= camera_pos.z;
-
-					// top left coord
-					if (k == 0) {
-						x1 += pos.x;
-						y1 += pos.y;
-						z1 += pos.z;
-					}
-					// bottom right coord
-					if (k == SQUARES_PER_FACE - 1) {
-						x1 += pos.x;
-						x1 /= 2;
-						y1 += pos.y;
-						y1 /= 2;
-						z1 += pos.z;
-						z1 /= 2;
-					}
 
 					vec3_t new_pos = {0};
 					rotate_and_project_squares(&pos, &new_pos);
@@ -661,10 +679,6 @@ void render_cubes() {
 
 			}
 
-			// calc distance to camera
-			int r = sqrt((x1 * x1) + (y1 * y1) + (z1 * z1));
-			new_face.r = r;
-
 			if (pos_highlight) {
 				// if it is, check that square.r is closest r
 				// also check that the z value is positive!!!
@@ -673,14 +687,14 @@ void render_cubes() {
 
 					central_cube_index = i;
 					// find the face we have highlighted
-					cube_highlighted = j;
+					cube_highlighted = new_face.dir;
 					// 0 = top
 					// 1 = front
 					// 2 = left
 					// 3 = back
 					// 4 = right
 					// 5 = bottom
-					draw_highlight_index = draw_faces.count;
+					draw_highlight_index = j;
 				}
 			}
 					
@@ -708,7 +722,7 @@ void render_cubes() {
 		}
 	}
 
-	// sort the squares based on their distance to the camera
+	// sort the faces based on their distance to the camera
 	qsort(draw_faces.items, draw_faces.count, sizeof(face_t), compare_faces);
 }
 
@@ -723,6 +737,23 @@ int compare_faces(const void *one, const void *two) {
 		return -1;
 	}
 	if (r1 < r2) {
+		return 1;
+	}
+
+	return 0;
+}
+
+int compare_faces_reverse(const void *one, const void *two) {
+	const face_t *face_one = one;
+	const face_t *face_two = two;
+
+	int r1 = face_one->r;
+	int r2 = face_two->r;
+
+	if (r1 < r2) {
+		return -1;
+	}
+	if (r1 > r2) {
 		return 1;
 	}
 
