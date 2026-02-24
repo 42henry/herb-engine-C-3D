@@ -7,14 +7,7 @@
 #include <assert.h>
 #include <time.h>
 
-//TODO: 
-// for each cube, only render the 3 faces with the smallest rs
-// each face has a value that states if it's neighbour is occupied,
-// if it is, don't render it
-
-// update neighbours value everytime we add a cube or remove a cube
-// - for each cube check if it's nearby, then check which faces are now/are no longer a neighbour to the new cube or empty space
-// neighbour value is a 32bit int, each bit represents a face, 1 means it has a neighbour, 0 it does not
+//TODO: fix back face culling and neighbour culling
 
 //TODO: other blocks and terrain generation
 
@@ -74,11 +67,11 @@ typedef struct {
 	square_t squares[SQUARES_PER_FACE];
 	int r; // distance from camera
 	int dir; // top front left etc
+	int neighbour;
 } face_t;
 
 typedef struct {
 	face_t *items;
-	uint32_t neighbours;
 	int count;
 } faces_t;
 
@@ -549,23 +542,63 @@ void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array
 		}
 	}
 
-	cube.faces[0] = top;
-	cube.faces[0].dir = TOP;
+	cube.faces[TOP] = top;
+	cube.faces[TOP].dir = TOP;
 
-	cube.faces[1] = front;
-	cube.faces[1].dir = FRONT;
+	cube.faces[FRONT] = front;
+	cube.faces[FRONT].dir = FRONT;
 
-	cube.faces[2] = left;
-	cube.faces[2].dir = LEFT;
+	cube.faces[LEFT] = left;
+	cube.faces[LEFT].dir = LEFT;
 
-	cube.faces[3] = back;
-	cube.faces[3].dir = BACK;
+	cube.faces[BACK] = back;
+	cube.faces[BACK].dir = BACK;
 
-	cube.faces[4] = right;
-	cube.faces[4].dir = RIGHT;
+	cube.faces[RIGHT] = right;
+	cube.faces[RIGHT].dir = RIGHT;
 
-	cube.faces[5] = bottom;
-	cube.faces[5].dir = BOTTOM;
+	cube.faces[BOTTOM] = bottom;
+	cube.faces[BOTTOM].dir = BOTTOM;
+
+	// find neighbours:
+	for (int i = 0; i < world_cubes.count; i++) {
+		int x1 = world_cubes.items[i].faces[0].squares[0].coords[0].x;
+		int y1 = world_cubes.items[i].faces[0].squares[0].coords[0].y;
+		int z1 = world_cubes.items[i].faces[0].squares[0].coords[0].z;
+
+		if (y == y1 && z == z1) {
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].x - CUBE_WIDTH == x) {
+				world_cubes.items[i].faces[LEFT].neighbour = 1;
+				cube.faces[RIGHT].neighbour = 1;	
+			}
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].x + CUBE_WIDTH == x) {
+				world_cubes.items[i].faces[RIGHT].neighbour = 1;
+				cube.faces[LEFT].neighbour = 1;	
+			}
+		}
+
+		if (x == x1 && z == z1) {
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].y - CUBE_WIDTH == y) {
+				world_cubes.items[i].faces[BOTTOM].neighbour = 1;
+				cube.faces[TOP].neighbour = 1;	
+			}
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].y + CUBE_WIDTH == y) {
+				world_cubes.items[i].faces[TOP].neighbour = 1;
+				cube.faces[BOTTOM].neighbour = 1;	
+			}
+		}
+
+		if (x == x1 && y == y1) {
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].z - CUBE_WIDTH == z) {
+				world_cubes.items[i].faces[FRONT].neighbour = 1;
+				cube.faces[BACK].neighbour = 1;	
+			}
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].z + CUBE_WIDTH == z) {
+				world_cubes.items[i].faces[BACK].neighbour = 1;
+				cube.faces[FRONT].neighbour = 1;	
+			}
+		}
+	}
 
 	array->items[array->count++] = cube;
 
@@ -620,13 +653,18 @@ void render_cubes() {
 	    }
 
 		// sort the faces based on their distance to the camera
-		qsort(&cube.faces, 6, sizeof(face_t), compare_faces_reverse);
+		// qsort(&cube.faces, 6, sizeof(face_t), compare_faces_reverse);
 
-		for (int j = 0; j < 3; j++) {
+		for (int j = 0; j < 6; j++) {
 
 			int pos_highlight = 0;
 
 			face_t face = cube.faces[j];
+
+			if (face.neighbour) {
+				continue;
+			}
+
 			face_t new_face = {0};
 			new_face.r = face.r;
 			new_face.dir = face.dir;
@@ -1157,12 +1195,50 @@ void place_cube(int index, texture_t *texture) {
 }
 
 void remove_cube(int index) {
+	int x = world_cubes.items[index].faces[0].squares[0].coords[0].x;
+	int y = world_cubes.items[index].faces[0].squares[0].coords[0].y;
+	int z = world_cubes.items[index].faces[0].squares[0].coords[0].z;
+
 	int count = index;
 	for (int i = index + 1; i < world_cubes.count; i++) {
 		world_cubes.items[count] = world_cubes.items[i];
 		count++;	
 	}
 	world_cubes.count --;
+
+	// update neighbours:
+	for (int i = 0; i < world_cubes.count; i++) {
+		int x1 = world_cubes.items[i].faces[0].squares[0].coords[0].x;
+		int y1 = world_cubes.items[i].faces[0].squares[0].coords[0].y;
+		int z1 = world_cubes.items[i].faces[0].squares[0].coords[0].z;
+
+		if (y == y1 && z == z1) {
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].x - CUBE_WIDTH == x) {
+				world_cubes.items[i].faces[LEFT].neighbour = 0;	
+			}
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].x + CUBE_WIDTH == x) {
+				world_cubes.items[i].faces[RIGHT].neighbour = 0;	
+			}
+		}
+
+		if (x == x1 && z == z1) {
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].y - CUBE_WIDTH == y) {
+				world_cubes.items[i].faces[BOTTOM].neighbour = 0;	
+			}
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].y + CUBE_WIDTH == y) {
+				world_cubes.items[i].faces[TOP].neighbour = 0;	
+			}
+		}
+
+		if (x == x1 && y == y1) {
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].z - CUBE_WIDTH == z) {
+				world_cubes.items[i].faces[FRONT].neighbour = 0;	
+			}
+			if (world_cubes.items[i].faces[0].squares[0].coords[0].z + CUBE_WIDTH == z) {
+				world_cubes.items[i].faces[BACK].neighbour = 0;	
+			}
+		}
+	}
 	return;
 }
 
