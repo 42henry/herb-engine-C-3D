@@ -31,8 +31,9 @@ Work done so far:
  - don't draw back faces, or faces with a neighbouring face
 
 Next steps:
- - terrain generation - not sure how to do this yet
- - chunks?
+ - chunks
+ - terrain generation
+ - lighting
 
 linux:  
 gcc -o main.o -lX11 -lm -O3 -march=native ./linux2.c  
