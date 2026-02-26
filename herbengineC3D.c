@@ -116,6 +116,10 @@ typedef struct {
 	int cube_count;
 } chunk_t;
 
+typedef struct {
+    unsigned char p[512];
+} perlin_t;
+
 /* ----------------------- local functions --------------------- */
 
 static void init_stuff();
@@ -174,14 +178,24 @@ static int collided();
 
 // chunks
 static void update_chunks(int dir);
-static void generate_chunk(chunk_t *chunk);
+static void generate_chunk(chunk_t *chunk, int i);
 static void remove_chunk(vec3_t pos);
+
+// perlin noise:
+static uint32_t lcg(uint32_t *state);
+static void perlin_init(perlin_t *n, uint32_t seed);
+static double fade(double t);
+static double lerp(double a, double b, double t);
+static double grad(int h, double x, double y);
+static double perlin2D(perlin_t *n, double x, double y);
 
 /* ----------------------- local variables --------------------- */
 
 static uint32_t *pixels = NULL;
 
 static chunk_t chunks[NUM_CHUNKS] = {0};
+static int occupied_chunk_index = 0;
+
 static faces_t draw_faces = {0};
 
 static int highlighted_cube_face = 0;
@@ -239,6 +253,7 @@ static colour_t blue = {0};
 
 static colour_t texture[SQUARES_PER_FACE] = {0};
 texture_t *grass_texture = NULL;
+texture_t *dirt_texture = NULL;
 texture_t *stone_texture = NULL;
 texture_t *wood_texture = NULL;
 texture_t *leaf_texture = NULL;
@@ -247,9 +262,12 @@ struct timespec last, now;
 
 static int dlog = 0;
 
+static perlin_t noise;
+
 void init_stuff() {
 
 	srand(time(NULL));
+    perlin_init(&noise, 69420);
 
 	// tests
 	assert(test_fill_square());
@@ -262,7 +280,7 @@ void init_stuff() {
 	highlighted_cube_face = -1;
 
 	camera_pos.x = 0;
-	camera_pos.y = 1 * CUBE_WIDTH;
+	camera_pos.y = 10 * CUBE_WIDTH;
 	camera_pos.z = 1 * CUBE_WIDTH;
 
 	player_width = CUBE_WIDTH / 3;
@@ -313,10 +331,11 @@ void init_stuff() {
 	for (int i = 0; i < sqrt(NUM_CHUNKS); i++) {
 		for (int j = 0; j < sqrt(NUM_CHUNKS); j++) {
 			chunks[count].pos = (vec3_t){chunk_pos.x + i * CUBE_WIDTH * CHUNK_WIDTH, 0, chunk_pos.z + j * CUBE_WIDTH * CHUNK_WIDTH};
-			generate_chunk(&chunks[count]);
+			generate_chunk(&chunks[count], count);
 			count++;
 		}
 	}
+	occupied_chunk_index = 4;
 
 	return;
 }
@@ -486,12 +505,6 @@ void add_cube_to_chunk(vec3_t top_left, texture_t *texture, chunk_t *chunk) {
 			bottom.squares[count++] = square;
 		}
 	}
-
-	bottom.neighbour = 1;
-	front.neighbour = 1;
-	back.neighbour = 1;
-	left.neighbour = 1;
-	right.neighbour = 1;
 
 	cube->faces[TOP] = top;
 	cube->faces[TOP].dir = TOP;
@@ -1528,10 +1541,8 @@ void handle_mouse() {
 }
 
 // TODO:
-// make this only check the chunk you're in
-// we should just keep track of the chunk index of what chunk the player is in
 int collided() {
-	for (int chunk_i = 0; chunk_i < NUM_CHUNKS; chunk_i++) {
+	for (int chunk_i; chunk_i < NUM_CHUNKS; chunk_i++) {
 		for (int i = 0; i < chunks[chunk_i].cube_count; i++) {
 			// x1 = top left front
 			int x1 = chunks[chunk_i].cubes[i].faces[0].squares[0].coords[0].x;
@@ -1836,6 +1847,18 @@ void generate_textures() {
 
 	stone_texture = readPPM("stone.ppm");
 	assert(stone_texture != NULL);
+	
+	// create dirt texture
+	// top bottom side
+	i = 0;
+	for (i; i < SQUARES_PER_FACE * 3; i++) {
+		myImg.data[i] = (colour_t){150 + (rand() % 50), 75 + (rand() % 50), 10 + (rand() % 50), };
+	}
+
+    writePPM("dirt.ppm", &myImg);
+
+	dirt_texture = readPPM("dirt.ppm");
+	assert(dirt_texture != NULL);
 
 	// create wood texture
 	// * 3 for top bottom side of cube
@@ -1877,41 +1900,61 @@ void generate_textures() {
 void update_chunks(int dir) {
 	switch (dir) {
 		case Z_POS: {
+			if ((occupied_chunk_index + 1) % CHUNK_WIDTH == 0) {
+				occupied_chunk_index -= (CHUNK_WIDTH - 1);
+			}
+			else {
+				occupied_chunk_index += 1;
+			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (camera_pos.z - chunks[i].pos.z > 2 * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].cube_count = 0;
 					chunks[i].pos.z += sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
-					generate_chunk(&chunks[i]);
+					generate_chunk(&chunks[i], i);
 				}
 			}
 			break;
 		}
 		case Z_NEG: {
+			if (occupied_chunk_index % CHUNK_WIDTH == 0) {
+				occupied_chunk_index += (CHUNK_WIDTH - 1);
+			}
+			else {
+				occupied_chunk_index -= 1;
+			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (chunks[i].pos.z - camera_pos.z> CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].cube_count = 0;
 					chunks[i].pos.z -= sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
-					generate_chunk(&chunks[i]);
+					generate_chunk(&chunks[i], i);
 				}
 			}
 			break;
 		}
 		case X_POS: {
+			occupied_chunk_index += 3;
+			if (occupied_chunk_index > (NUM_CHUNKS - 1)) {
+				occupied_chunk_index -= NUM_CHUNKS;
+			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (camera_pos.x - chunks[i].pos.x > 2 * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].cube_count = 0;
 					chunks[i].pos.x += sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
-					generate_chunk(&chunks[i]);
+					generate_chunk(&chunks[i], i);
 				}
 			}
 			break;
 		}
 		case X_NEG: {
+			occupied_chunk_index -= 3;
+			if (occupied_chunk_index < 0) {
+				occupied_chunk_index += NUM_CHUNKS;
+			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (chunks[i].pos.x - camera_pos.x> CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].cube_count = 0;
 					chunks[i].pos.x -= sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
-					generate_chunk(&chunks[i]);
+					generate_chunk(&chunks[i], i);
 				}
 			}
 			break;
@@ -1919,7 +1962,7 @@ void update_chunks(int dir) {
 	}
 }
 
-void generate_chunk(chunk_t *chunk) {
+void generate_chunk(chunk_t *chunk, int i) {
 	int count = 0;
 	for (int i = 0; i < CHUNK_WIDTH; i++) {
 		for (int j = 0; j < CHUNK_WIDTH; j++) {
@@ -1932,4 +1975,83 @@ void generate_chunk(chunk_t *chunk) {
 			}
 		}
 	}
+	for (int i = 0; i < CHUNK_WIDTH; i++) {
+		for (int j = 0; j < CHUNK_WIDTH; j++) {
+			int y = floor(((perlin2D(&noise, (chunk->pos.x + i) * 0.1, (chunk->pos.z + j) * 0.1)) * 10));
+			add_cube_to_chunk((vec3_t){chunk->pos.x + (i * CUBE_WIDTH),
+									   y * CUBE_WIDTH,
+									   chunk->pos.z + (j * CUBE_WIDTH)},
+							  grass_texture, chunk);
+			for (int k = y - 1; k > 0; k--) {
+				add_cube_to_chunk((vec3_t){chunk->pos.x + (i * CUBE_WIDTH),
+										   k * CUBE_WIDTH,
+										   chunk->pos.z + (j * CUBE_WIDTH)},
+								  dirt_texture, chunk);
+			}
+		}
+	}
+}
+
+//gpt perlin:
+// Simple LCG random
+static uint32_t lcg(uint32_t *state) {
+    *state = (*state * 1664525u + 1013904223u);
+    return *state;
+}
+
+void perlin_init(perlin_t *n, uint32_t seed)
+{
+    uint32_t state = seed;
+
+    // Fill 0..255
+    for (int i = 0; i < 256; i++)
+        n->p[i] = i;
+
+    // Fisher–Yates shuffle using seed
+    for (int i = 255; i > 0; i--) {
+        int j = lcg(&state) % (i + 1);
+        unsigned char tmp = n->p[i];
+        n->p[i] = n->p[j];
+        n->p[j] = tmp;
+    }
+
+    // Duplicate
+    for (int i = 0; i < 256; i++)
+        n->p[256 + i] = n->p[i];
+}
+
+static double fade(double t) {
+    return t*t*t*(t*(t*6-15)+10);
+}
+
+static double lerp(double a, double b, double t) {
+    return a + t*(b-a);
+}
+
+static double grad(int h, double x, double y) {
+    h &= 3;
+    return ((h&1)?-x:x) + ((h&2)?-y:y);
+}
+
+double perlin2D(perlin_t *n, double x, double y)
+{
+    int X = (int)floor(x) & 255;
+    int Y = (int)floor(y) & 255;
+
+    x -= floor(x);
+    y -= floor(y);
+
+    double u = fade(x);
+    double v = fade(y);
+
+    int A = n->p[X] + Y;
+    int B = n->p[X + 1] + Y;
+
+    return lerp(
+        lerp(grad(n->p[A], x, y),
+             grad(n->p[B], x-1, y), u),
+        lerp(grad(n->p[A+1], x, y-1),
+             grad(n->p[B+1], x-1, y-1), u),
+        v
+    );
 }
