@@ -9,8 +9,7 @@
 
 //TODO:
 // chunks - make it infinite
-    // store world in chunks
-	// when we go past a chunk border, remove old chunks, then add new chunks
+    // store the index of which chunk the player is standing in at all times - update it when we update_chunks
 	// if we place or remove a block, store the location and block type in the chunk data, and save
     // the chunk data.
     // when we load a chunk, check if that chunk is stored in chunk data, else just generate it normally
@@ -112,7 +111,7 @@ typedef struct {
 } texture_t;
 
 typedef struct {
-	cube_t cubes[CUBES_PER_CHUNK];
+	cube_t cubes[CUBES_PER_CHUNK * 2];
 	vec3_t pos;
 	int cube_count;
 } chunk_t;
@@ -160,7 +159,7 @@ static void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float 
 static void add_cube_to_chunk(vec3_t top_left, texture_t *texture, chunk_t *chunk);
 static void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array);
 static void remove_cube(int index);
-static void place_cube(int index, texture_t *texture);
+static void place_cube(texture_t *texture);
 static int compare_faces(const void *one, const void *two);
 
 // input
@@ -184,8 +183,10 @@ static uint32_t *pixels = NULL;
 
 static chunk_t chunks[NUM_CHUNKS] = {0};
 static faces_t draw_faces = {0};
-static int central_cube_index;
-static int cube_highlighted = 0;
+
+static int highlighted_cube_face = 0;
+static int highlighted_cube_index = 0;
+static int highlighted_cube_chunk_index = 0;
 
 static cubes_t hotbar_cubes = {0};
 static faces_t hotbar_faces = {0};
@@ -258,7 +259,7 @@ void init_stuff() {
 	// set initial values
 	draw_faces.items = malloc(MAX_CUBES * 6 * sizeof(face_t));
 	draw_faces.count = 0;
-	cube_highlighted = -1;
+	highlighted_cube_face = -1;
 
 	camera_pos.x = 0;
 	camera_pos.y = 1 * CUBE_WIDTH;
@@ -678,7 +679,7 @@ void clear_screen(colour_t colour) {
 void render_chunks() {
 
 	int closest_r = 99999999;
-	cube_highlighted = -1;
+	highlighted_cube_face = -1;
 	int draw_highlight_index = -1;
 
 	draw_faces.count = 0;
@@ -820,19 +821,20 @@ void render_chunks() {
 
 				}
 
-				// TODO:
-				//if (pos_highlight) {
-					//// if it is, check that square.r is closest r
-					//// also check that the z value is positive!!!
-					//if (new_face.r < closest_r && new_face.squares[0].coords[0].z) {
-						//closest_r = new_face.r;
-//
-						//central_cube_index = i;
-						//// find the face we have highlighted
-						//cube_highlighted = new_face.dir;
-						//draw_highlight_index = draw_faces.count;
-					//}
-				//}
+				if (pos_highlight) {
+					// if it is, check that square.r is closest r
+					// also check that the z value is positive!!!
+					if (new_face.r < closest_r && new_face.squares[0].coords[0].z) {
+						closest_r = new_face.r;
+
+						highlighted_cube_index = cube_i;
+						highlighted_cube_chunk_index = chunk_i;
+
+						// find the face we have highlighted
+						highlighted_cube_face = new_face.dir;
+						draw_highlight_index = draw_faces.count;
+					}
+				}
 						
 				draw_faces.items[draw_faces.count++] = new_face;
 			}
@@ -1219,78 +1221,78 @@ void draw_rect(vec3_t top_left, int width, int height, colour_t colour) {
 }
 
 // TODO:
-void place_cube(int index, texture_t *texture) {
-	//vec3_t pos = {0};
-	//pos.x = world_cubes.items[index].faces[0].squares[0].coords[0].x;
-	//pos.y = world_cubes.items[index].faces[0].squares[0].coords[0].y;
-	//pos.z = world_cubes.items[index].faces[0].squares[0].coords[0].z;
-	//switch (cube_highlighted) {
-		//case TOP: {
-		    //pos.y += CUBE_WIDTH;
-			//break;
-		//}
-		//case FRONT: {
-			//pos.z -= CUBE_WIDTH;
-			//break;
-		//}
-		//case LEFT: {
-		    //pos.x -= CUBE_WIDTH;
-			//break;
-		//}
-		//case BACK: {
-			//pos.z += CUBE_WIDTH;
-			//break;
-		//}
-		//case RIGHT: {
-		    //pos.x += CUBE_WIDTH;
-			//break;
-		//}
-		//case BOTTOM: {
-		    //pos.y -= CUBE_WIDTH;
-			//break;
-		//}
-	//}
-	//int x1 = pos.x;
-	//int y1 = pos.y;
-	//int z1 = pos.z;
-//
-	//// x2 = bottom right back
-	//int x2 = x1 + CUBE_WIDTH;	
-	//int y2 = y1 - CUBE_WIDTH;	
-	//int z2 = z1 + CUBE_WIDTH;
-//
-	//camera_pos.y -= CUBE_WIDTH;
-	//// player_x1 = top left front
-	//int player_x1 = camera_pos.x - player_width;
-	//int player_y1 = camera_pos.y + player_height;
-	//int player_z1 = camera_pos.z - player_width;
-//
-	//// player_x1 = bottom right back
-	//int player_x2 = camera_pos.x + player_width;
-	//int player_y2 = camera_pos.y - player_width;
-	//int player_z2 = camera_pos.z + player_width;
-//
-	//int x_collision = 0;
-	//int y_collision = 0;
-	//int z_collision = 0;
-	//if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
-		//// xs overlap
-		//x_collision = 1;
-	//}
-	//if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
-		//// ys overlap
-		//y_collision = 1;
-	//}
-	//if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
-		//// zs overlap
-		//z_collision = 1;
-	//}
-	//camera_pos.y += CUBE_WIDTH;
-	//if (x_collision && y_collision && z_collision) {
-		//return;
-	//}
-//
-	//add_cube_to_cubes_array(pos, texture, &world_cubes);
+void place_cube(texture_t *texture) {
+	vec3_t pos = {0};
+	pos.x = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].x;
+	pos.y = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].y;
+	pos.z = chunks[highlighted_cube_chunk_index].cubes[highlighted_cube_index].faces[0].squares[0].coords[0].z;
+	switch (highlighted_cube_face) {
+		case TOP: {
+		    pos.y += CUBE_WIDTH;
+			break;
+		}
+		case FRONT: {
+			pos.z -= CUBE_WIDTH;
+			break;
+		}
+		case LEFT: {
+		    pos.x -= CUBE_WIDTH;
+			break;
+		}
+		case BACK: {
+			pos.z += CUBE_WIDTH;
+			break;
+		}
+		case RIGHT: {
+		    pos.x += CUBE_WIDTH;
+			break;
+		}
+		case BOTTOM: {
+		    pos.y -= CUBE_WIDTH;
+			break;
+		}
+	}
+	int x1 = pos.x;
+	int y1 = pos.y;
+	int z1 = pos.z;
+
+	// x2 = bottom right back
+	int x2 = x1 + CUBE_WIDTH;	
+	int y2 = y1 - CUBE_WIDTH;	
+	int z2 = z1 + CUBE_WIDTH;
+
+	camera_pos.y -= CUBE_WIDTH;
+	// player_x1 = top left front
+	int player_x1 = camera_pos.x - player_width;
+	int player_y1 = camera_pos.y + player_height;
+	int player_z1 = camera_pos.z - player_width;
+
+	// player_x1 = bottom right back
+	int player_x2 = camera_pos.x + player_width;
+	int player_y2 = camera_pos.y - player_width;
+	int player_z2 = camera_pos.z + player_width;
+
+	int x_collision = 0;
+	int y_collision = 0;
+	int z_collision = 0;
+	if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
+		// xs overlap
+		x_collision = 1;
+	}
+	if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
+		// ys overlap
+		y_collision = 1;
+	}
+	if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
+		// zs overlap
+		z_collision = 1;
+	}
+	camera_pos.y += CUBE_WIDTH;
+	if (x_collision && y_collision && z_collision) {
+		return;
+	}
+
+	add_cube_to_chunk(pos, texture, &chunks[highlighted_cube_chunk_index]);
 	return;
 }
 
@@ -1374,7 +1376,6 @@ void handle_input()
         z += speed * sin(x_rotation);
 	}
     if (keys[space]) {
-		printf("\n%d", camera_pos.z);
 		if (! jump) {
 			jump = jump_height;
 		}
@@ -1477,8 +1478,8 @@ void handle_mouse() {
 	}
 	else {
 		if (mouse_was_left_clicked) {
-			if (cube_highlighted > -1) {
-				remove_cube(central_cube_index);
+			if (highlighted_cube_face > -1) {
+				remove_cube(highlighted_cube_index);
 			}
 			dlog = (dlog ? 0 : 1);
 		}
@@ -1489,22 +1490,22 @@ void handle_mouse() {
 	}
 	else {
 		if (mouse_was_right_clicked) {
-			if (cube_highlighted > -1) {
+			if (highlighted_cube_face > -1) {
 				switch (hotbar_selection) {
 					case 0: {
-						place_cube(central_cube_index, grass_texture);
+						place_cube(grass_texture);
 						break;
 					}
 					case 1: {
-						place_cube(central_cube_index, stone_texture);
+						place_cube(stone_texture);
 						break;
 					}
 					case 2: {
-						place_cube(central_cube_index, wood_texture);
+						place_cube(wood_texture);
 						break;
 					}
 					case 3: {
-						place_cube(central_cube_index, leaf_texture);
+						place_cube(leaf_texture);
 						break;
 					}
 				}
