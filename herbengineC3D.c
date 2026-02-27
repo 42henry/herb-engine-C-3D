@@ -832,7 +832,7 @@ void render_chunks() {
 						int z = z1 - camera_pos.z;
 
 						// central coord
-						double x2 = x + (CUBE_WIDTH / 2);
+						double x2 = x;
 						double y2 = y - (CUBE_WIDTH / 2);
 						double z2 = z + (CUBE_WIDTH / 2);
 
@@ -879,7 +879,7 @@ void render_chunks() {
 						int z = z1 - camera_pos.z;
 
 						// central coord
-						double x2 = x + (CUBE_WIDTH / 2);
+						double x2 = x;
 						double y2 = y - (CUBE_WIDTH / 2);
 						double z2 = z + (CUBE_WIDTH / 2);
 
@@ -1156,7 +1156,7 @@ void fill_square(square_t *square) {
 	//}
 
 	// TODO: could we use y+=2 or smthn instead of y++ here to make it faster?
-	for (int y = smallest_y; y < largest_y; y+=2) {
+	for (int y = smallest_y; y < largest_y; y++) {
 		uint32_t* row = &pixels[y * WIDTH];
 
 		// get x coords y using y = mx + c
