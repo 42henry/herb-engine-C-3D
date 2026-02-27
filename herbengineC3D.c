@@ -11,8 +11,6 @@
 
 // fix hotbar and hand UI
 
-// fix updating occupied_chunk_index
-
 // add fog at chunk boundaries
 
 // fix place and remove cube to also check neighbouring chunks if at a chunk boundary
@@ -46,7 +44,8 @@
 #define TARGET_FPS 60
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
 
-#define NUM_CHUNKS 9
+#define SQRT_NUM_CHUNKS 3
+#define NUM_CHUNKS (SQRT_NUM_CHUNKS * SQRT_NUM_CHUNKS)
 #define CHUNK_WIDTH 10
 #define CUBES_PER_CHUNK (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH)
 
@@ -341,8 +340,8 @@ void init_stuff() {
 	// setup the world:
 	vec3_t chunk_pos = {0, 0, 0};
 	int count = 0;
-	for (int i = 0; i < sqrt(NUM_CHUNKS); i++) {
-		for (int j = 0; j < sqrt(NUM_CHUNKS); j++) {
+	for (int i = 0; i < SQRT_NUM_CHUNKS; i++) {
+		for (int j = 0; j < SQRT_NUM_CHUNKS; j++) {
 			chunks[count].pos = (vec3_t){chunk_pos.x + i * CUBE_WIDTH * CHUNK_WIDTH, 0, chunk_pos.z + j * CUBE_WIDTH * CHUNK_WIDTH};
 			generate_chunk(&chunks[count]);
 			count++;
@@ -350,9 +349,9 @@ void init_stuff() {
 	}
 	occupied_chunk_index = NUM_CHUNKS / 2;
 
-	camera_pos.x += (sqrt(NUM_CHUNKS) * CHUNK_WIDTH * CUBE_WIDTH) / 2;
+	camera_pos.x += (SQRT_NUM_CHUNKS * CHUNK_WIDTH * CUBE_WIDTH) / 2;
 	camera_pos.y = 10 * CUBE_WIDTH;
-	camera_pos.z += (sqrt(NUM_CHUNKS) * CHUNK_WIDTH * CUBE_WIDTH) / 2;
+	camera_pos.z += (SQRT_NUM_CHUNKS * CHUNK_WIDTH * CUBE_WIDTH) / 2;
 
 	return;
 }
@@ -1518,14 +1517,22 @@ void handle_input()
 	camera_pos.y -= CUBE_WIDTH;
 
 	int old = ((camera_pos.x / CUBE_WIDTH) / CHUNK_WIDTH);
+	// account for the fact 6 / 10 = 0 and - 6 / 10 = 0
+	if (camera_pos.x < 0) {
+		old--;
+	}
 	int new = old;
+
     camera_pos.x += x;
 	if (collided()) {
 		camera_pos.x -= x;
 	}
+
 	new = ((camera_pos.x / CUBE_WIDTH) / CHUNK_WIDTH);
-	printf("\nnew: %d", new);
-	if (old != new || (camera_pos.x * (camera_pos.x - x) < 0)) {
+	if (camera_pos.x < 0) {
+		new--;
+	}
+	if (old != new) {
 		if (camera_pos.x < camera_pos.x - x) {
 			update_chunks(X_NEG);
 		}
@@ -1540,20 +1547,26 @@ void handle_input()
 	}
 
 	old = ((camera_pos.z / CUBE_WIDTH) / CHUNK_WIDTH);
+	if (camera_pos.z < 0) {
+		old--;
+	}
 	new = old;
+
     camera_pos.z += z;
 	if (collided()) {
 		camera_pos.z -= z;
 	}
-	else {
-		new = ((camera_pos.z / CUBE_WIDTH) / CHUNK_WIDTH);
-		if (old != new || (camera_pos.z * (camera_pos.z - z) < 0)) {
-			if (camera_pos.z < camera_pos.z - z) {
-				update_chunks(Z_NEG);
-			}
-			else {
-				update_chunks(Z_POS);
-			}
+
+	new = ((camera_pos.z / CUBE_WIDTH) / CHUNK_WIDTH);
+	if (camera_pos.z < 0) {
+		new--;
+	}
+	if (old != new) {
+		if (camera_pos.z < camera_pos.z - z) {
+			update_chunks(Z_NEG);
+		}
+		else {
+			update_chunks(Z_POS);
 		}
 	}
 	
@@ -2000,56 +2013,54 @@ void generate_textures() {
 void update_chunks(int dir) {
 	switch (dir) {
 		case Z_POS: {
-			if ((occupied_chunk_index + 1) % CHUNK_WIDTH == 0) {
-				occupied_chunk_index -= (CHUNK_WIDTH - 1);
-			}
-			else {
-				occupied_chunk_index += 1;
+			occupied_chunk_index += 1;
+			if (occupied_chunk_index % SQRT_NUM_CHUNKS == 0) {
+				occupied_chunk_index -= SQRT_NUM_CHUNKS;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
-				if (camera_pos.z - chunks[i].pos.z > (sqrt(NUM_CHUNKS) - 1) * CHUNK_WIDTH * CUBE_WIDTH) {
-					chunks[i].pos.z += sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
+				if (camera_pos.z - chunks[i].pos.z > (SQRT_NUM_CHUNKS - 1) * CHUNK_WIDTH * CUBE_WIDTH) {
+					chunks[i].pos.z += SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i]);
 				}
 			}
 			break;
 		}
 		case Z_NEG: {
-			if (occupied_chunk_index % CHUNK_WIDTH == 0) {
-				occupied_chunk_index += (CHUNK_WIDTH - 1);
+			if (occupied_chunk_index % SQRT_NUM_CHUNKS == 0) {
+				occupied_chunk_index += SQRT_NUM_CHUNKS - 1;
 			}
 			else {
 				occupied_chunk_index -= 1;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (chunks[i].pos.z - camera_pos.z> CHUNK_WIDTH * CUBE_WIDTH) {
-					chunks[i].pos.z -= sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
+					chunks[i].pos.z -= SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i]);
 				}
 			}
 			break;
 		}
 		case X_POS: {
-			occupied_chunk_index += 3;
+			occupied_chunk_index += SQRT_NUM_CHUNKS;
 			if (occupied_chunk_index > (NUM_CHUNKS - 1)) {
 				occupied_chunk_index -= NUM_CHUNKS;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
-				if (camera_pos.x - chunks[i].pos.x > (sqrt(NUM_CHUNKS) - 1) * CHUNK_WIDTH * CUBE_WIDTH) {
-					chunks[i].pos.x += sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
+				if (camera_pos.x - chunks[i].pos.x > (SQRT_NUM_CHUNKS - 1) * CHUNK_WIDTH * CUBE_WIDTH) {
+					chunks[i].pos.x += SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i]);
 				}
 			}
 			break;
 		}
 		case X_NEG: {
-			occupied_chunk_index -= 3;
+			occupied_chunk_index -= SQRT_NUM_CHUNKS;
 			if (occupied_chunk_index < 0) {
 				occupied_chunk_index += NUM_CHUNKS;
 			}
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (chunks[i].pos.x - camera_pos.x> CHUNK_WIDTH * CUBE_WIDTH) {
-					chunks[i].pos.x -= sqrt(NUM_CHUNKS) * CUBE_WIDTH * CHUNK_WIDTH;
+					chunks[i].pos.x -= SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
 					generate_chunk(&chunks[i]);
 				}
 			}
