@@ -9,14 +9,9 @@
 
 //TODO:
 
+// fix update chunks to only move the edge chunks along
+
 // fix hotbar and hand UI
-
-// fix render issue
-
-// fix place and remove cube to also check neighbouring chunks if at a chunk boundary
-// fix place or remove cube seg fault?
-
-// fix issue where you get stuck in a block at a chunk boundary
 
 // if we place or remove a block, store the location and block type in the chunk data, and save the chunk data.
 // when we load a chunk, check if that chunk is stored in chunk data, else just generate it normally
@@ -24,9 +19,18 @@
 // simple terration - trees
 // simple lighting
 
-// fix fill squares to accomodate for when the ys of the square are too close
-
 // optimise by lowering resolution of the fill square function - see the TODO note
+
+// bugs:
+
+// fix render issue where some cube faces draw on top of faces in the same cube incorrectly at certain angles
+
+// fix place and remove cube to also check neighbouring chunks if at a chunk boundary
+// fix place or remove cube seg fault?
+
+// fix collision issue where you get stuck in a block at a chunk boundary
+
+// fix fill squares to accomodate for when the ys of the square are too close
 
 /* ----------------------- defines --------------------- */
 
@@ -48,10 +52,10 @@
 #define FRAME_TIME_NS (1000000000 / TARGET_FPS)
 
 // this has to be odd
-#define SQRT_NUM_CHUNKS 5
+#define SQRT_NUM_CHUNKS 3
 
 #define NUM_CHUNKS (SQRT_NUM_CHUNKS * SQRT_NUM_CHUNKS)
-#define CHUNK_WIDTH 16
+#define CHUNK_WIDTH 8
 #define CUBES_PER_CHUNK (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH)
 
 #define FOG_DIST ((SQRT_NUM_CHUNKS - 2) * CHUNK_WIDTH * CUBE_WIDTH * 0.5)
