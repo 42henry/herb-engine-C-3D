@@ -9,12 +9,8 @@
 
 //TODO:
 
-// try storing chunks as a list of textures, or a 0 if no cube is at that location
-// then in render_chunks, we do the math to create the squares, and check for neighbours
-// or we could store a neighbours value along side the textures value
-// this would be so much nicer!
+// add fog at chunk boundaries
 
-// at large rs, squares start to draw in front of closer squares
 // place_cube is no longer checking neighbours
 
 // fix remove cube - need to check if cube was on the boundary of a chunk for neighbours!
@@ -74,13 +70,17 @@ typedef struct {
 typedef struct {
 	vec3_t coords[4];	
 	uint32_t colour;
-	int r; // distance to camera
 } square_t;
 
 typedef struct {
-	square_t *items;
+	square_t squares[SQUARES_PER_FACE];
+	float r;	
+} face_t;
+
+typedef struct {
+	face_t items[6 * CUBES_PER_CHUNK * NUM_CHUNKS];
 	int count;
-} squares_t;
+} faces_t;
 
 typedef enum {
 	TOP, FRONT, LEFT, BACK, RIGHT, BOTTOM
@@ -146,7 +146,7 @@ static void clear_screen(colour_t colour);
 static void draw_rect(vec3_t top_left, int width, int height, colour_t colour);
 static void fill_square(square_t *square);
 static int test_fill_square();
-static void draw_all_squares();
+static void draw_all_faces();
 
 static void draw_cursor();
 static void draw_hotbar();
@@ -168,7 +168,7 @@ static void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float 
 static void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array);
 static void remove_cube();
 static void place_cube(texture_t *texture);
-static int compare_squares(const void *one, const void *two);
+static int compare_faces(const void *one, const void *two);
 
 // input
 static void handle_input();
@@ -200,7 +200,7 @@ static uint32_t *pixels = NULL;
 static chunk_t chunks[NUM_CHUNKS] = {0};
 static int occupied_chunk_index = 0;
 
-static squares_t draw_squares = {0};
+static faces_t draw_faces = {0};
 
 static int highlighted_cube_face = 0;
 static int highlighted_cube_index = 0;
@@ -292,8 +292,7 @@ void init_stuff() {
 	generate_textures();
 
 	// set initial values
-	draw_squares.items = malloc(MAX_CUBES * 6 * SQUARES_PER_FACE * sizeof(square_t));
-	draw_squares.count = 0;
+	draw_faces.count = 0;
 	highlighted_cube_face = -1;
 
 	camera_pos.x = 0;
@@ -374,7 +373,7 @@ void update_pixels() {
 
 	render_chunks();
 
-	draw_all_squares();
+	draw_all_faces();
 
 	draw_cursor();
 	//draw_hand();
@@ -560,7 +559,7 @@ void render_chunks() {
 	highlighted_cube_face = -1;
 	int draw_highlight_index = -1;
 
-	draw_squares.count = 0;
+	draw_faces.count = 0;
 
 	// for each chunk
 	for (int chunk_i = 0; chunk_i < NUM_CHUNKS; chunk_i++) {
@@ -575,7 +574,6 @@ void render_chunks() {
 			texture_t *texture = chunks[chunk_i].cubes[cube_i].texture;
 
 			// only draw faces closest to camera
-			//TODO these should be zero
 			int top = 0;
 			int bottom = 0;
 			int front = 0;
@@ -636,22 +634,21 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// bottom right coord
-						int x2 = x + CUBE_WIDTH;
-						int y2 = y;
-						int z2 = z + CUBE_WIDTH;
-
-						x2 /= 2;
-						z2 /= 2;
+						// central coord
+						double x2 = x + (CUBE_WIDTH / 2);
+						double y2 = y;
+						double z2 = z + (CUBE_WIDTH / 2);
 
 						// calc distance to camera
-						int r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
+						face_t face = {0};
+						face.r = r;
+
+						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
 							for (int j = 0; j < TEXTURE_WIDTH; j++) {
 								square_t square = {0};
-
-								square.r = r;
 
 								square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y, z + (j * len)});
 								square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y, z + (j * len)});
@@ -662,9 +659,10 @@ void render_chunks() {
 								colour_t c = texture->data[j * TEXTURE_WIDTH + i];
 								square.colour = pack_colour_to_uint32(&c);
 
-								draw_squares.items[draw_squares.count++] = square;
+								face.squares[count++] = square;
 							}
 						}
+						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
 					case BOTTOM: {
@@ -679,22 +677,21 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// bottom right coord
-						int x2 = x + CUBE_WIDTH;
-						int y2 = y;
-						int z2 = z + CUBE_WIDTH;
-
-						x2 /= 2;
-						z2 /= 2;
+						// central coord
+						double x2 = x + (CUBE_WIDTH / 2);
+						double y2 = y;
+						double z2 = z + (CUBE_WIDTH / 2);
 
 						// calc distance to camera
-						int r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
+						face_t face = {0};
+						face.r = r;
+
+						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
 							for (int j = 0; j < TEXTURE_WIDTH; j++) {
 								square_t square = {0};
-
-								square.r = r;
 
 								square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y - CUBE_WIDTH, z + (j * len)});
 								square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - CUBE_WIDTH, z + (j * len)});
@@ -705,9 +702,10 @@ void render_chunks() {
 								colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
 								square.colour = pack_colour_to_uint32(&c);
 
-								draw_squares.items[draw_squares.count++] = square;
+								face.squares[count++] = square;
 							}
 						}
+						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
 					case FRONT: {
@@ -722,22 +720,21 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// bottom right coord
-						int x2 = x + CUBE_WIDTH;
-						int y2 = y - CUBE_WIDTH;
-						int z2 = z;
-
-						x2 /= 2;
-						y2 /= 2;
+						// central coord
+						double x2 = x + (CUBE_WIDTH / 2);
+						double y2 = y - (CUBE_WIDTH / 2);
+						double z2 = z;
 
 						// calc distance to camera
-						int r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
+						face_t face = {0};
+						face.r = r;
+
+						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
 							for (int j = 0; j < TEXTURE_WIDTH; j++) {
 								square_t square = {0};
-
-								square.r = r;
 
 								square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y - (j * len), z});
 								square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - (j * len), z});
@@ -748,9 +745,10 @@ void render_chunks() {
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 								square.colour = pack_colour_to_uint32(&c);
 
-								draw_squares.items[draw_squares.count++] = square;
+								face.squares[count++] = square;
 							}
 						}
+						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
 					case BACK: {
@@ -765,22 +763,21 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// bottom right coord
-						int x2 = x + CUBE_WIDTH;
-						int y2 = y - CUBE_WIDTH;
-						int z2 = z;
-
-						x2 /= 2;
-						y2 /= 2;
+						// central coord
+						double x2 = x + (CUBE_WIDTH / 2);
+						double y2 = y - (CUBE_WIDTH / 2);
+						double z2 = z;
 
 						// calc distance to camera
-						int r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
+						face_t face = {0};
+						face.r = r;
+
+						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
 							for (int j = 0; j < TEXTURE_WIDTH; j++) {
 								square_t square = {0};
-
-								square.r = r;
 
 								square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y - (j * len), z + CUBE_WIDTH});
 								square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - (j * len), z + CUBE_WIDTH});
@@ -790,9 +787,10 @@ void render_chunks() {
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 								square.colour = pack_colour_to_uint32(&c);
 
-								draw_squares.items[draw_squares.count++] = square;
+								face.squares[count++] = square;
 							}
 						}
+						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
 					case LEFT: {
@@ -807,22 +805,21 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// bottom right coord
-						int x2 = x + CUBE_WIDTH;
-						int y2 = y;
-						int z2 = z + CUBE_WIDTH;
-
-						x2 /= 2;
-						z2 /= 2;
+						// central coord
+						double x2 = x + (CUBE_WIDTH / 2);
+						double y2 = y - (CUBE_WIDTH / 2);
+						double z2 = z + (CUBE_WIDTH / 2);
 
 						// calc distance to camera
-						int r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
+						face_t face = {0};
+						face.r = r;
+
+						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
 							for (int j = 0; j < TEXTURE_WIDTH; j++) {
 								square_t square = {0};
-
-								square.r = r;
 
 								square.coords[0] = rotate_and_project((vec3_t) {x, y - (j * len), z + (i * len)});
 								square.coords[1] = rotate_and_project((vec3_t) {x, y - (j * len), z + ((i + 1) * len)});
@@ -832,9 +829,10 @@ void render_chunks() {
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 								square.colour = pack_colour_to_uint32(&c);
 
-								draw_squares.items[draw_squares.count++] = square;
+								face.squares[count++] = square;
 							}
 						}
+						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
 					case RIGHT: {
@@ -849,22 +847,21 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// bottom right coord
-						int x2 = x + CUBE_WIDTH;
-						int y2 = y;
-						int z2 = z + CUBE_WIDTH;
-
-						x2 /= 2;
-						z2 /= 2;
+						// central coord
+						double x2 = x + (CUBE_WIDTH / 2);
+						double y2 = y - (CUBE_WIDTH / 2);
+						double z2 = z + (CUBE_WIDTH / 2);
 
 						// calc distance to camera
-						int r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
+						face_t face = {0};
+						face.r = r;
+
+						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
 							for (int j = 0; j < TEXTURE_WIDTH; j++) {
 								square_t square = {0};
-
-								square.r = r;
 
 								square.coords[0] = rotate_and_project((vec3_t) {x + CUBE_WIDTH, y - (j * len), z + (i * len)});
 								square.coords[1] = rotate_and_project((vec3_t) {x + CUBE_WIDTH, y - (j * len), z + ((i + 1) * len)});
@@ -874,9 +871,10 @@ void render_chunks() {
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 								square.colour = pack_colour_to_uint32(&c);
 
-								draw_squares.items[draw_squares.count++] = square;
+								face.squares[count++] = square;
 							}
 						}
+						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
 				}
@@ -953,15 +951,15 @@ void render_chunks() {
 	//}
 
 	// sort the faces based on their distance to the camera
-	qsort(draw_squares.items, draw_squares.count, sizeof(square_t), compare_squares);
+	qsort(draw_faces.items, draw_faces.count, sizeof(face_t), compare_faces);
 }
 
-int compare_squares(const void *one, const void *two) {
-	const square_t *square_one = one;
-	const square_t *square_two = two;
+int compare_faces(const void *one, const void *two) {
+	const face_t *face_one = one;
+	const face_t *face_two = two;
 
-	int r1 = square_one->r;
-	int r2 = square_two->r;
+	double r1 = face_one->r;
+	double r2 = face_two->r;
 
 	if (r1 > r2) {
 		return -1;
@@ -1004,9 +1002,11 @@ vec3_t rotate_and_project(vec3_t pos) {
 	return new_pos;
 }
 
-void draw_all_squares() {
-	for (int i = 0; i < draw_squares.count; i++) {
-		fill_square(&draw_squares.items[i]);
+void draw_all_faces() {
+	for (int i = 0; i < draw_faces.count; i++) {
+		for (int j = 0; j < SQUARES_PER_FACE; j++) {
+			fill_square(&draw_faces.items[i].squares[j]);
+		}
 	}
 }
 
@@ -1617,6 +1617,7 @@ void handle_mouse() {
 	}
 }
 
+// TODO:
 int collided() {
 	for (int chunk_i; chunk_i < NUM_CHUNKS; chunk_i++) {
 		for (int cube_i = 0; cube_i < CUBES_PER_CHUNK; cube_i++) {
@@ -1730,7 +1731,6 @@ void cleanup() {
 	//free(hand_faces.items);
 	//free(hotbar_cubes.items);
 	//free(hotbar_faces.items);
-	free(draw_squares.items);
     free(pixels);
 }
 
@@ -2048,9 +2048,6 @@ void generate_chunk(chunk_t *chunk) {
 				float val = 0.00003;
 				int perlin_y = floor(((perlin2D(&noise, (chunk->pos.x + (x * CUBE_WIDTH)) * val, (chunk->pos.z + (z * CUBE_WIDTH)) * val)) * 10));
 				perlin_y += 5;
-				if (perlin_y < 0) {
-					perlin_y = 0;
-				}
 
 				int right = floor(((perlin2D(&noise, (chunk->pos.x + (x * CUBE_WIDTH) + CUBE_WIDTH) * val, (chunk->pos.z + (z * CUBE_WIDTH)) * val)) * 10));
 				right += 5;
@@ -2060,6 +2057,22 @@ void generate_chunk(chunk_t *chunk) {
 				front += 5;
 				int back = floor(((perlin2D(&noise, (chunk->pos.x + (x * CUBE_WIDTH)) * val, (chunk->pos.z + (z * CUBE_WIDTH) + CUBE_WIDTH) * val)) * 10));
 				back += 5;
+
+				if (perlin_y < 0) {
+					perlin_y = 0;
+				}
+				if (left < 0) {
+					left = 0;
+				}
+				if (right < 0) {
+					right = 0;
+				}
+				if (front < 0) {
+					front = 0;
+				}
+				if (back < 0) {
+					back = 0;
+				}
 
 				bruh_top = 0;
 				bruh_left = 0;
@@ -2081,7 +2094,7 @@ void generate_chunk(chunk_t *chunk) {
 					bruh_left = 1;
 				}
 				bruh_top = 0;
-
+				
 				if (y > perlin_y) {
 					// air
 					texture = NULL;
