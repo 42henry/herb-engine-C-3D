@@ -342,7 +342,7 @@ void init_stuff() {
 	//render_hand();
 
 	// setup the world:
-	vec3_t chunk_pos = {-CHUNK_WIDTH * 1.5 * CUBE_WIDTH, 0, -CHUNK_WIDTH * 1.5 * CUBE_WIDTH};
+	vec3_t chunk_pos = {-CHUNK_WIDTH * (sqrt(NUM_CHUNKS) / 2) * CUBE_WIDTH, 0, -CHUNK_WIDTH * (sqrt(NUM_CHUNKS) / 2) * CUBE_WIDTH};
 	int count = 0;
 	for (int i = 0; i < sqrt(NUM_CHUNKS); i++) {
 		for (int j = 0; j < sqrt(NUM_CHUNKS); j++) {
@@ -351,7 +351,7 @@ void init_stuff() {
 			count++;
 		}
 	}
-	occupied_chunk_index = 4;
+	occupied_chunk_index = NUM_CHUNKS / 2;
 
 	return;
 }
@@ -621,6 +621,8 @@ void render_chunks() {
 
 				int texture_side = SQUARES_PER_FACE;
 
+				face_t face = {0};
+
 				switch (face_i) {
 					case TOP: {
 						if (! top) {
@@ -642,7 +644,6 @@ void render_chunks() {
 						// calc distance to camera
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
 
-						face_t face = {0};
 						face.r = r;
 
 						int count = 0;
@@ -879,76 +880,70 @@ void render_chunks() {
 					}
 				}
 
-				// TODO:
-				//int pos_highlight = 0;
-//
-					//// check if the square just drawn surrounds 0,0
-					//int top_left_x = WIDTH;
-					//int bottom_right_x = -WIDTH;
-//
-					//int top_left_y = HEIGHT;
-					//int bottom_right_y = -HEIGHT;
-//
-					//for (int l = 0; l < 4; l++) {
-						//if (new_face.squares[k].coords[l].x < top_left_x) {
-							//top_left_x = new_face.squares[k].coords[l].x;
-						//}	
-						//if (new_face.squares[k].coords[l].x > bottom_right_x) {
-							//bottom_right_x = new_face.squares[k].coords[l].x;
-						//}	
-						//if (new_face.squares[k].coords[l].y < top_left_y) {
-							//top_left_y = new_face.squares[k].coords[l].y;
-						//}	
-						//if (new_face.squares[k].coords[l].y > bottom_right_y) {
-							//bottom_right_y = new_face.squares[k].coords[l].y;
-						//}	
-					//}
-//
-					//if (top_left_x <= WIDTH / 2 && bottom_right_x >= WIDTH / 2 && top_left_y <= HEIGHT / 2 && bottom_right_y >= HEIGHT / 2) {
-						//pos_highlight = 1;
-					//}
-//
-				//}
-//
-				//if (pos_highlight) {
-					//// if it is, check that square.r is closest r
-					//// also check that the z value is positive!!!
-					//if (new_face.r < closest_r && new_face.squares[0].coords[0].z) {
-						//closest_r = new_face.r;
-//
-						//highlighted_cube_index = cube_i;
-						//highlighted_cube_chunk_index = chunk_i;
-//
-						//// find the face we have highlighted
-						//highlighted_cube_face = new_face.dir;
-						//draw_highlight_index = draw_faces.count;
-					//}
-				//}
+				if (chunk_i == occupied_chunk_index) {
+					int pos_highlight = 0;
+
+					int top_left_x = face.squares[0].coords[0].x;
+					int bottom_right_x = face.squares[SQUARES_PER_FACE - 1].coords[2].x;
+					int top_left_y = face.squares[0].coords[0].y;
+					int bottom_right_y = face.squares[SQUARES_PER_FACE - 1].coords[2].y;
+
+					if (bottom_right_x < top_left_x) {
+						int temp = bottom_right_x;
+						bottom_right_x = top_left_x;
+						top_left_x = temp;
+					}
+					if (bottom_right_y < top_left_y) {
+						int temp = bottom_right_y;
+						bottom_right_y = top_left_y;
+						top_left_y = temp;
+					}
+
+					// check if the face just drawn surrounds 0,0
+
+					if (top_left_x <= WIDTH / 2 && bottom_right_x >= WIDTH / 2 && top_left_y <= HEIGHT / 2 && bottom_right_y >= HEIGHT / 2) {
+						pos_highlight = 1;
+					}
+
+					if (pos_highlight) {
+						// if it is, check that square.r is closest r
+						// also check that the z value is positive!!!
+						if (face.r < closest_r && face.squares[0].coords[0].z) {
+							closest_r = face.r;
+
+							highlighted_cube_index = cube_i;
+							highlighted_cube_chunk_index = chunk_i;
+
+							// find the face we have highlighted
+							highlighted_cube_face = face_i;
+							draw_highlight_index = draw_faces.count - 1;
+						}
+					}
+				}
 			}
 		}
 
 	}
 
-// TODO:
 	// highlight cube
-	//if (draw_highlight_index > -1) {
-		//for (int k = 0; k < SQUARES_PER_FACE; k++) {
-			//colour_t colour = unpack_colour_from_uint32(draw_faces.items[draw_highlight_index].squares[k].colour);
-			//colour.r = (colour.r + 100);
-			//if (colour.r < 100) {
-				//colour.r = 255;
-			//}
-			//colour.g = (colour.g + 100);
-			//if (colour.g < 100) {
-				//colour.g = 255;
-			//}
-			//colour.b = (colour.b + 100);
-			//if (colour.b < 100) {
-				//colour.b = 255;
-			//}
-			//draw_faces.items[draw_highlight_index].squares[k].colour =  pack_colour_to_uint32(&colour);
-		//}
-	//}
+	if (draw_highlight_index > -1) {
+		for (int k = 0; k < SQUARES_PER_FACE; k++) {
+			colour_t colour = unpack_colour_from_uint32(draw_faces.items[draw_highlight_index].squares[k].colour);
+			colour.r = (colour.r + 100);
+			if (colour.r < 100) {
+				colour.r = 255;
+			}
+			colour.g = (colour.g + 100);
+			if (colour.g < 100) {
+				colour.g = 255;
+			}
+			colour.b = (colour.b + 100);
+			if (colour.b < 100) {
+				colour.b = 255;
+			}
+			draw_faces.items[draw_highlight_index].squares[k].colour =  pack_colour_to_uint32(&colour);
+		}
+	}
 
 	// sort the faces based on their distance to the camera
 	qsort(draw_faces.items, draw_faces.count, sizeof(face_t), compare_faces);
@@ -1619,49 +1614,47 @@ void handle_mouse() {
 
 // TODO:
 int collided() {
-	for (int chunk_i; chunk_i < NUM_CHUNKS; chunk_i++) {
-		for (int cube_i = 0; cube_i < CUBES_PER_CHUNK; cube_i++) {
-			if (chunks[chunk_i].cubes[cube_i].texture == NULL) {
-				continue;
-			}
-			// x1 = top left front
-			int x1 = chunks[chunk_i].pos.x + ((cube_i % CHUNK_WIDTH) * CUBE_WIDTH);
-			int y1 = chunks[chunk_i].pos.y + (((cube_i / CHUNK_WIDTH) % CHUNK_WIDTH) * CUBE_WIDTH);
-			int z1 = chunks[chunk_i].pos.z + (((cube_i / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH) * CUBE_WIDTH);
+	for (int cube_i = 0; cube_i < CUBES_PER_CHUNK; cube_i++) {
+		if (chunks[occupied_chunk_index].cubes[cube_i].texture == NULL) {
+			continue;
+		}
+		// x1 = top left front
+		int x1 = chunks[occupied_chunk_index].pos.x + ((cube_i % CHUNK_WIDTH) * CUBE_WIDTH);
+		int y1 = chunks[occupied_chunk_index].pos.y + (((cube_i / CHUNK_WIDTH) % CHUNK_WIDTH) * CUBE_WIDTH);
+		int z1 = chunks[occupied_chunk_index].pos.z + (((cube_i / (CHUNK_WIDTH * CHUNK_WIDTH)) % CHUNK_WIDTH) * CUBE_WIDTH);
 
-			// x2 = bottom right back
-			int x2 = x1 + CUBE_WIDTH;	
-			int y2 = y1 - CUBE_WIDTH;	
-			int z2 = z1 + CUBE_WIDTH;
+		// x2 = bottom right back
+		int x2 = x1 + CUBE_WIDTH;	
+		int y2 = y1 - CUBE_WIDTH;	
+		int z2 = z1 + CUBE_WIDTH;
 
-			// player_x1 = top left front
-			int player_x1 = camera_pos.x - player_width;
-			int player_y1 = camera_pos.y + player_height;
-			int player_z1 = camera_pos.z - player_width;
+		// player_x1 = top left front
+		int player_x1 = camera_pos.x - player_width;
+		int player_y1 = camera_pos.y + player_height;
+		int player_z1 = camera_pos.z - player_width;
 
-			// player_x1 = bottom right back
-			int player_x2 = camera_pos.x + player_width;
-			int player_y2 = camera_pos.y - player_width;
-			int player_z2 = camera_pos.z + player_width;
+		// player_x1 = bottom right back
+		int player_x2 = camera_pos.x + player_width;
+		int player_y2 = camera_pos.y - player_width;
+		int player_z2 = camera_pos.z + player_width;
 
-			int x_collision = 0;
-			int y_collision = 0;
-			int z_collision = 0;
-			if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
-				// xs overlap
-				x_collision = 1;
-			}
-			if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
-				// ys overlap
-				y_collision = 1;
-			}
-			if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
-				// zs overlap
-				z_collision = 1;
-			}
-			if (x_collision && y_collision && z_collision) {
-				return 1;
-			}
+		int x_collision = 0;
+		int y_collision = 0;
+		int z_collision = 0;
+		if ((player_x1 >= x1 && player_x1 <= x2) || (player_x2 >= x1 && player_x2 <= x2)) {
+			// xs overlap
+			x_collision = 1;
+		}
+		if ((player_y1 <= y1 && player_y1 >= y2) || (player_y2 <= y1 && player_y2 >= y2)) {
+			// ys overlap
+			y_collision = 1;
+		}
+		if ((player_z1 >= z1 && player_z1 <= z2) || (player_z2 >= z1 && player_z2 <= z2)) {
+			// zs overlap
+			z_collision = 1;
+		}
+		if (x_collision && y_collision && z_collision) {
+			return 1;
 		}
 	}
 	return 0;
