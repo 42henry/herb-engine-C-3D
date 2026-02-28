@@ -9,9 +9,6 @@
 
 //TODO:
 
-// if we place or remove a block, store the location and block type in the chunk data, and save the chunk data.
-// when we load a chunk, check if that chunk is stored in chunk data, else just generate it normally
-
 // simple terration - trees
 // simple lighting
 
@@ -139,14 +136,21 @@ typedef struct {
 } perlin_t;
 
 typedef struct {
+	texture_t *texture;
+	int cube_i;	
+} edit_cube_t;
+
+typedef struct {
 	vec3_t pos;
-	cubes_t *items;
+	edit_cube_t *cubes;
 	int count;
+	int capacity;
 } edit_t;
 
 typedef struct {
 	edit_t *items;
 	int count;
+	int capacity;
 } edits_t;
 
 /* ----------------------- local functions --------------------- */
@@ -206,8 +210,9 @@ static int collided();
 
 // chunks
 static void update_chunks(int dir);
-static void generate_chunk(chunk_t *chunk);
+static void generate_chunk(int chunk_i);
 static void remove_chunk(vec3_t pos);
+static void add_edit(int chunk_i, int cube_i, texture_t *texture);
 
 // perlin noise:
 static uint32_t lcg(uint32_t *state);
@@ -299,6 +304,8 @@ static double sine_y_rotation = 0;
 static double cos_x_rotation = 0;
 static double cos_y_rotation = 0;
 
+static edits_t edits = {0};
+
 void init_stuff() {
 
 	srand(time(NULL));
@@ -360,7 +367,7 @@ void init_stuff() {
 	for (int i = 0; i < SQRT_NUM_CHUNKS; i++) {
 		for (int j = 0; j < SQRT_NUM_CHUNKS; j++) {
 			chunks[count].pos = (vec3_t){chunk_pos.x + i * CUBE_WIDTH * CHUNK_WIDTH, 0, chunk_pos.z + j * CUBE_WIDTH * CHUNK_WIDTH};
-			generate_chunk(&chunks[count]);
+			generate_chunk(count);
 			count++;
 		}
 	}
@@ -369,6 +376,10 @@ void init_stuff() {
 	camera_pos.x += (SQRT_NUM_CHUNKS * CHUNK_WIDTH * CUBE_WIDTH) / 2;
 	camera_pos.y = 10 * CUBE_WIDTH;
 	camera_pos.z += (SQRT_NUM_CHUNKS * CHUNK_WIDTH * CUBE_WIDTH) / 2;
+
+	edits.items = malloc(256 * sizeof(edit_t));
+	edits.capacity = 256;
+	edits.count = 0;
 
 	return;
 }
@@ -1237,6 +1248,7 @@ void draw_rect(vec3_t top_left, int width, int height, colour_t colour) {
 }
 
 void place_cube(texture_t *texture, int chunk_i, int cube_i) {
+
 	chunks[chunk_i].cubes[cube_i].texture = texture;
 
 	chunks[chunk_i].cubes[cube_i].top_neighbour = 0;
@@ -1281,6 +1293,7 @@ void place_cube(texture_t *texture, int chunk_i, int cube_i) {
 }
 
 void remove_cube(int chunk_i, int cube_i) {
+
 	chunks[chunk_i].cubes[cube_i].texture = NULL;
 
 	// neighbour below:
@@ -1308,6 +1321,12 @@ void remove_cube(int chunk_i, int cube_i) {
 		chunks[chunk_i].cubes[cube_i + CHUNK_WIDTH * CHUNK_WIDTH].front_neighbour = 0;
 	}
 	return;
+}
+
+void player_remove_cube() {
+	add_edit(highlighted_cube_chunk_index, highlighted_cube_index, NULL);
+
+	remove_cube(highlighted_cube_chunk_index, highlighted_cube_index);
 }
 
 void handle_input()
@@ -1452,7 +1471,7 @@ void handle_mouse() {
 	else {
 		if (mouse_was_left_clicked) {
 			if (highlighted_cube_face > -1) {
-				remove_cube(highlighted_cube_chunk_index, highlighted_cube_index);
+				player_remove_cube();
 			}
 			dlog = (dlog ? 0 : 1);
 		}
@@ -1853,7 +1872,7 @@ void update_chunks(int dir) {
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (camera_pos.z - chunks[i].pos.z > ((SQRT_NUM_CHUNKS / 2) + 1) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].pos.z += SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
-					generate_chunk(&chunks[i]);
+					generate_chunk(i);
 				}
 			}
 			break;
@@ -1868,7 +1887,7 @@ void update_chunks(int dir) {
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (chunks[i].pos.z - camera_pos.z > (SQRT_NUM_CHUNKS / 2) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].pos.z -= SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
-					generate_chunk(&chunks[i]);
+					generate_chunk(i);
 				}
 			}
 			break;
@@ -1881,7 +1900,7 @@ void update_chunks(int dir) {
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (camera_pos.x - chunks[i].pos.x > ((SQRT_NUM_CHUNKS / 2) + 1) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].pos.x += SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
-					generate_chunk(&chunks[i]);
+					generate_chunk(i);
 				}
 			}
 			break;
@@ -1894,7 +1913,7 @@ void update_chunks(int dir) {
 			for (int i = 0; i < NUM_CHUNKS; i++) {
 				if (chunks[i].pos.x - camera_pos.x > (SQRT_NUM_CHUNKS / 2) * CHUNK_WIDTH * CUBE_WIDTH) {
 					chunks[i].pos.x -= SQRT_NUM_CHUNKS * CUBE_WIDTH * CHUNK_WIDTH;
-					generate_chunk(&chunks[i]);
+					generate_chunk(i);
 				}
 			}
 			break;
@@ -1902,7 +1921,8 @@ void update_chunks(int dir) {
 	}
 }
 
-void generate_chunk(chunk_t *chunk) {
+void generate_chunk(int chunk_i) {
+	chunk_t *chunk = &chunks[chunk_i];
 
 	texture_t *texture = grass_texture;
 
@@ -1985,6 +2005,19 @@ void generate_chunk(chunk_t *chunk) {
 				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].back_neighbour = cube_back;
 				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].top_neighbour = cube_top;
 				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].bottom_neighbour = cube_bottom;
+			}
+		}
+	}
+	for (int i = 0; i < edits.count; i++) {
+		if (edits.items[i].pos.x == chunk->pos.x && edits.items[i].pos.z == chunk->pos.z) {
+			// apply the edits
+			for (int j = 0; j < edits.items[i].count; j++) {
+				if (edits.items[i].cubes[j].texture == NULL) {
+					remove_cube(chunk_i, edits.items[i].cubes[j].cube_i);
+				}
+				else {
+					place_cube(edits.items[i].cubes[j].texture, chunk_i, edits.items[i].cubes[j].cube_i);
+				}
 			}
 		}
 	}
@@ -2186,4 +2219,48 @@ void player_place_cube() {
 		}
 		int cube_i = highlighted_cube_index + diff;
 		place_cube(texture, highlighted_cube_chunk_index, cube_i);
+		add_edit(highlighted_cube_chunk_index, cube_i, texture);
+	
+}
+
+void add_edit(int chunk_i, int cube_i, texture_t *texture) {
+
+	vec3_t chunk_pos = chunks[chunk_i].pos;
+
+	int edit_index = -1;
+	for (int i = 0; i < edits.count; i++) {
+		if (edits.items[i].pos.x == chunk_pos.x && edits.items[i].pos.z == chunk_pos.z) {
+			edit_index = i;
+			break;	
+		}
+	}
+
+	if (edit_index > -1) {
+		if (edits.items[edit_index].count == edits.items[edit_index].capacity) {
+			edits.items[edit_index].capacity *= 2;
+			edits.items[edit_index].cubes = realloc(edits.items[edit_index].cubes,
+					                                edits.items[edit_index].capacity * sizeof(edit_cube_t));
+		}
+		int count = edits.items[edit_index].count;
+
+		edits.items[edit_index].cubes[count].texture = texture;
+		edits.items[edit_index].cubes[count].cube_i = cube_i;
+		edits.items[edit_index].count++;
+	}
+	else {
+		edit_t new_edit;
+		new_edit.pos = chunk_pos;
+
+		new_edit.cubes = malloc(256 * sizeof(edit_cube_t));
+		new_edit.capacity = 256;
+		new_edit.cubes[0].texture = texture;
+		new_edit.cubes[0].cube_i = cube_i;
+		new_edit.count = 1;
+
+		if (edits.count == edits.capacity) {
+			edits.capacity *= 2;
+			edits.items = realloc(edits.items, edits.capacity * sizeof(edit_t)); 
+		}
+		edits.items[edits.count++] = new_edit;
+	}
 }
