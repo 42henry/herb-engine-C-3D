@@ -693,7 +693,7 @@ void render_chunks() {
 						// central coord
 						double x2 = x + (CUBE_WIDTH / 2);
 						double y2 = y - (CUBE_WIDTH / 2);
-						double z2 = z;
+						double z2 = z - CUBE_WIDTH;
 
 						// calc distance to camera
 						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
@@ -805,7 +805,7 @@ void render_chunks() {
 						int z = z1 - camera_pos.z;
 
 						// central coord
-						double x2 = x;
+						double x2 = x + CUBE_WIDTH;
 						double y2 = y - (CUBE_WIDTH / 2);
 						double z2 = z + (CUBE_WIDTH / 2);
 
