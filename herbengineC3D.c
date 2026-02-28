@@ -9,8 +9,6 @@
 
 //TODO:
 
-// fix rendering issue where certain cube faces draw in wrong order when looking in certain axis
-
 // simple terration - trees
 // simple lighting
 
