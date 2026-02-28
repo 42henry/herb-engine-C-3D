@@ -50,7 +50,8 @@
 #define CHUNK_WIDTH 16
 #define CUBES_PER_CHUNK (CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_WIDTH)
 
-#define FOG_DIST ((SQRT_NUM_CHUNKS / 2) * CHUNK_WIDTH * CUBE_WIDTH)
+#define FOG_DIST ((SQRT_NUM_CHUNKS / 2) * CHUNK_WIDTH * CUBE_WIDTH * 0.8)
+#define FOG_MAX (CHUNK_WIDTH * CUBE_WIDTH * 0.75)
 
 #define HOTBAR_SLOTS 9
 #define HOTBAR_SLOT_WIDTH (WIDTH / (HOTBAR_SLOTS + 2)) // add 2 so it's centred
@@ -187,6 +188,7 @@ static void render_hand();
 static vec3_t rotate_and_project(vec3_t pos);
 static void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot);
 static int square_surrounds_centre(square_t *square);
+static void set_fog_level(colour_t *c, float fog_r);
 
 // cubes/squares handling
 static void remove_cube(int chunk_i, int cube_i);
@@ -511,15 +513,7 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// central coord
-						double x2 = x + (CUBE_WIDTH / 2);
-						double y2 = y;
-						double z2 = z + (CUBE_WIDTH / 2);
-
-						// calc distance to camera
-						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
-
-						face.r = r;
+						float fog_r = sqrt(((float)(float)x * (float)x) + ((float)z * (float)z));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -534,27 +528,28 @@ void render_chunks() {
 								// 0 as that is the top texture
 								colour_t c = texture->data[j * TEXTURE_WIDTH + i];
 
-								if (r > FOG_DIST) {
-									double val = r - FOG_DIST;
-									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
-									if (val > 100) {
-										val = 100;
-									}
-									c.r += (((float)sky.r - (float)c.r) / 100) * val;
-									c.g += (((float)sky.g - (float)c.g) / 100) * val;
-									c.b += (((float)sky.b - (float)c.b) / 100) * val;
-								}
+								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (r < REACH) {
+								if (chunk_i == occupied_chunk_index) {
 									if (square_surrounds_centre(&square)) {
 										pos_highlight = 1;
 									}
 								}
 							}
 						}
+
+						// calc distance to camera
+
+						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
+						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
+						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
+
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						face.r = r;
+
 						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
@@ -570,15 +565,7 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// central coord
-						double x2 = x + (CUBE_WIDTH / 2);
-						double y2 = y - CUBE_WIDTH;
-						double z2 = z + (CUBE_WIDTH / 2);
-
-						// calc distance to camera
-						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
-
-						face.r = r;
+						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -592,27 +579,29 @@ void render_chunks() {
 
 								// 1, as the top face textures are the first square of the texture image
 								colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
-								if (r > FOG_DIST) {
-									double val = r - FOG_DIST;
-									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
-									if (val > 100) {
-										val = 100;
-									}
-									c.r += (((float)sky.r - (float)c.r) / 100) * val;
-									c.g += (((float)sky.g - (float)c.g) / 100) * val;
-									c.b += (((float)sky.b - (float)c.b) / 100) * val;
-								}
+
+								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (r < REACH) {
+								if (chunk_i == occupied_chunk_index) {
 									if (square_surrounds_centre(&square)) {
 										pos_highlight = 1;
 									}
 								}
 							}
 						}
+
+						// calc distance to camera
+
+						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
+						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
+						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
+
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						face.r = r;
+
 						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
@@ -628,15 +617,7 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// central coord
-						double x2 = x + (CUBE_WIDTH / 2);
-						double y2 = y - (CUBE_WIDTH / 2);
-						double z2 = z;
-
-						// calc distance to camera
-						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
-
-						face.r = r;
+						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -650,27 +631,29 @@ void render_chunks() {
 
 								// 2, as the side face textures are the 2nd square of the texture image
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-								if (r > FOG_DIST) {
-									double val = r - FOG_DIST;
-									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
-									if (val > 100) {
-										val = 100;
-									}
-									c.r += (((float)sky.r - (float)c.r) / 100) * val;
-									c.g += (((float)sky.g - (float)c.g) / 100) * val;
-									c.b += (((float)sky.b - (float)c.b) / 100) * val;
-								}
+
+								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (r < REACH) {
+								if (chunk_i == occupied_chunk_index) {
 									if (square_surrounds_centre(&square)) {
 										pos_highlight = 1;
 									}
 								}
 							}
 						}
+
+						// calc distance to camera
+
+						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
+						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
+						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
+
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						face.r = r;
+
 						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
@@ -686,15 +669,7 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// central coord
-						double x2 = x + (CUBE_WIDTH / 2);
-						double y2 = y - (CUBE_WIDTH / 2);
-						double z2 = z - CUBE_WIDTH;
-
-						// calc distance to camera
-						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
-
-						face.r = r;
+						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -707,27 +682,29 @@ void render_chunks() {
 								square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y - ((j + 1) * len), z + CUBE_WIDTH});
 
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-								if (r > FOG_DIST) {
-									double val = r - FOG_DIST;
-									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
-									if (val > 100) {
-										val = 100;
-									}
-									c.r += (((float)sky.r - (float)c.r) / 100) * val;
-									c.g += (((float)sky.g - (float)c.g) / 100) * val;
-									c.b += (((float)sky.b - (float)c.b) / 100) * val;
-								}
+
+								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (r < REACH) {
+								if (chunk_i == occupied_chunk_index) {
 									if (square_surrounds_centre(&square)) {
 										pos_highlight = 1;
 									}
 								}
 							}
 						}
+
+						// calc distance to camera
+
+						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
+						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
+						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
+
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						face.r = r;
+
 						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
@@ -743,15 +720,7 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// central coord
-						double x2 = x;
-						double y2 = y - (CUBE_WIDTH / 2);
-						double z2 = z + (CUBE_WIDTH / 2);
-
-						// calc distance to camera
-						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
-
-						face.r = r;
+						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -764,27 +733,29 @@ void render_chunks() {
 								square.coords[3] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + (i * len)});
 
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-								if (r > FOG_DIST) {
-									double val = r - FOG_DIST;
-									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
-									if (val > 100) {
-										val = 100;
-									}
-									c.r += (((float)sky.r - (float)c.r) / 100) * val;
-									c.g += (((float)sky.g - (float)c.g) / 100) * val;
-									c.b += (((float)sky.b - (float)c.b) / 100) * val;
-								}
+
+								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 								 
-								if (r < REACH) {
+								if (chunk_i == occupied_chunk_index) {
 									if (square_surrounds_centre(&square)) {
 										pos_highlight = 1;
 									}
 								}
 							}
 						}
+
+						// calc distance to camera
+
+						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
+						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
+						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
+
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						face.r = r;
+
 						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
@@ -800,15 +771,7 @@ void render_chunks() {
 						int y = y1 - camera_pos.y;
 						int z = z1 - camera_pos.z;
 
-						// central coord
-						double x2 = x + CUBE_WIDTH;
-						double y2 = y - (CUBE_WIDTH / 2);
-						double z2 = z + (CUBE_WIDTH / 2);
-
-						// calc distance to camera
-						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
-
-						face.r = r;
+						float fog_r = sqrt(((float)x * (float)x) + ((float)z * (float)z));
 
 						int count = 0;
 						for (int i = 0; i < TEXTURE_WIDTH; i++) {
@@ -821,27 +784,29 @@ void render_chunks() {
 								square.coords[3] = rotate_and_project((vec3_t) {x + CUBE_WIDTH, y - ((j + 1) * len), z + (i * len)});
 
 								colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-								if (r > FOG_DIST) {
-									double val = r - FOG_DIST;
-									val = (val * 100) / (CHUNK_WIDTH * CUBE_WIDTH * 0.5);
-									if (val > 100) {
-										val = 100;
-									}
-									c.r += (((float)sky.r - (float)c.r) / 100) * val;
-									c.g += (((float)sky.g - (float)c.g) / 100) * val;
-									c.b += (((float)sky.b - (float)c.b) / 100) * val;
-								}
+
+								set_fog_level(&c, fog_r);
 
 								square.colour = pack_colour_to_uint32(&c);
 								face.squares[count++] = square;
 
-								if (r < REACH) {
+								if (chunk_i == occupied_chunk_index) {
 									if (square_surrounds_centre(&square)) {
 										pos_highlight = 1;
 									}
 								}
 							}
 						}
+
+						// calc distance to camera
+
+						double x2 = face.squares[0].coords[0].x + face.squares[SQUARES_PER_FACE - 1].coords[2].x;
+						double y2 = face.squares[0].coords[0].y + face.squares[SQUARES_PER_FACE - 1].coords[2].y;
+						double z2 = face.squares[0].coords[0].z + face.squares[SQUARES_PER_FACE - 1].coords[2].z;
+
+						double r = sqrt((x2 * x2) + (y2 * y2) + (z2 * z2));
+						face.r = r;
+
 						draw_faces.items[draw_faces.count++] = face;
 					    break;
 					}
@@ -2249,4 +2214,17 @@ void add_edit(int chunk_i, int cube_i, texture_t *texture) {
 		}
 		edits.items[edits.count++] = new_edit;
 	}
+}
+
+void set_fog_level(colour_t *c, float fog_r) {
+		if (fog_r > FOG_DIST) {
+			double val = fog_r - FOG_DIST;
+			val = (val * 100) / FOG_MAX;
+			if (val > 100) {
+				val = 100;
+			}
+			c->r += (((float)sky.r - (float)c->r) / 100) * val;
+			c->g += (((float)sky.g - (float)c->g) / 100) * val;
+			c->b += (((float)sky.b - (float)c->b) / 100) * val;
+		}
 }
