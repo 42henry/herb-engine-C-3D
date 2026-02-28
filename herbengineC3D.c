@@ -9,19 +9,20 @@
 
 //TODO:
 
-// fix hotbar and hand UI
-
 // if we place or remove a block, store the location and block type in the chunk data, and save the chunk data.
 // when we load a chunk, check if that chunk is stored in chunk data, else just generate it normally
 
 // simple terration - trees
 // simple lighting
 
+// fix hotbar and hand UI
+
 // optimise by lowering resolution of the fill square function - see the TODO note
 
 // bugs:
 
 // fix render issue where some cube faces draw on top of faces in the same cube incorrectly at certain angles
+// fix render issue where sometimes the squares are drawn super large for a split second
 
 // fix place and remove cube to also check neighbouring chunks if at a chunk boundary
 // fix place or remove cube seg fault?
@@ -62,6 +63,8 @@
 #define HOTBAR_SLOT_WIDTH (WIDTH / (HOTBAR_SLOTS + 2)) // add 2 so it's centred
 
 #define REACH (4 * CUBE_WIDTH)
+
+#define MAX_EDITS 1000000
 
 /* ----------------------- structs --------------------- */
 
@@ -135,6 +138,17 @@ typedef struct {
     unsigned char p[512];
 } perlin_t;
 
+typedef struct {
+	vec3_t pos;
+	cubes_t *items;
+	int count;
+} edit_t;
+
+typedef struct {
+	edit_t *items;
+	int count;
+} edits_t;
+
 /* ----------------------- local functions --------------------- */
 
 static void init_stuff();
@@ -175,7 +189,6 @@ static void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float 
 static int square_surrounds_centre(square_t *square);
 
 // cubes/squares handling
-static void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array);
 static void remove_cube();
 static void place_cube(texture_t *texture);
 static int compare_faces(const void *one, const void *two);
@@ -278,13 +291,6 @@ static int dlog = 0;
 
 static perlin_t noise;
 
-static int bruh_top = 0;
-static int bruh_bottom = 0;
-static int bruh_left = 0;
-static int bruh_right = 0;
-static int bruh_front = 0;
-static int bruh_back = 0;
-
 static colour_t sky = {0};
 
 void init_stuff() {
@@ -334,17 +340,12 @@ void init_stuff() {
 	// 9 hotbar slots
 	//hotbar_cubes.items = malloc(HOTBAR_SLOTS * sizeof(cube_t));
 	//hotbar_faces.items = malloc(HOTBAR_SLOTS * 6 * sizeof(face_t));
-	//add_cube_to_cubes_array((vec3_t){0, 0, 6 * CUBE_WIDTH}, grass_texture, &hotbar_cubes);
-	//add_cube_to_cubes_array((vec3_t){0, 0, 6 * CUBE_WIDTH}, stone_texture, &hotbar_cubes);
-	//add_cube_to_cubes_array((vec3_t){0, 0, 6 * CUBE_WIDTH}, wood_texture, &hotbar_cubes);
-	//add_cube_to_cubes_array((vec3_t){0, 0, 6 * CUBE_WIDTH}, leaf_texture, &hotbar_cubes);
 	//render_hotbar();
 
 	// hand
 	//hand_cubes.items = malloc(sizeof(cube_t));
 	//hand_faces.items = malloc(6 * sizeof(face_t));
 	//vec3_t pos = {camera_pos.x + 2 * CUBE_WIDTH, camera_pos.y - 0.5 * CUBE_WIDTH, camera_pos.z + 0.5 * CUBE_WIDTH};
-	//add_cube_to_cubes_array(pos, grass_texture, &hand_cubes);
 	//render_hand();
 
 	// setup the world:
@@ -402,157 +403,6 @@ colour_t unpack_colour_from_uint32(uint32_t packed_colour) {
 	colour.g = (packed_colour >> 8) & 255;
 	colour.b = packed_colour & 255;
     return colour;
-}
-
-void add_cube_to_cubes_array(vec3_t top_left, texture_t *texture, cubes_t *array) {
-	//// take a top left front coord of a cube, convert it to texture mapped squares, and add it to an array
-	//int x = top_left.x;
-	//int y = top_left.y;
-	//int z = top_left.z;
-//
-	//int len = CUBE_WIDTH / TEXTURE_WIDTH;
-//
-	//int texture_side = SQUARES_PER_FACE;
-//
-	//cube_t cube = {0};
-//
-	//// front
-	//face_t front = {0};
-	//int count = 0;
-	//for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		//for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			//square_t square = {0};
-			//square.coords[0] = (vec3_t) {x + (i * len), y - (j * len), z};
-			//square.coords[1] = (vec3_t) {x + ((i + 1) * len), y - (j * len), z};
-			//square.coords[2] = (vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z};
-			//square.coords[3] = (vec3_t) {x + (i * len), y - ((j + 1) * len), z};
-//
-			//// 2, as the side face textures are the 2nd square of the texture image
-			//colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			//square.colour = pack_colour_to_uint32(&c);
-//
-			//front.squares[count++] = square;
-		//}
-	//}
-//
-	//// back
-	//face_t back = {0};
-	//count = 0;
-	//for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		//for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			//square_t square = {0};
-//
-			//square.coords[0] = (vec3_t) {x + (i * len), y - (j * len), z + CUBE_WIDTH};
-			//square.coords[1] = (vec3_t) {x + ((i + 1) * len), y - (j * len), z + CUBE_WIDTH};
-			//square.coords[2] = (vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z + CUBE_WIDTH};
-			//square.coords[3] = (vec3_t) {x + (i * len), y - ((j + 1) * len), z + CUBE_WIDTH};
-//
-			//colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			//square.colour = pack_colour_to_uint32(&c);
-//
-			//back.squares[count++] = square;
-		//}
-	//}
-//
-	//// left
-	//face_t left = {0};
-	//count = 0;
-	//for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		//for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			//square_t square = {0};
-//
-			//square.coords[0] = (vec3_t) {x, y - (j * len), z + (i * len)};
-			//square.coords[1] = (vec3_t) {x, y - (j * len), z + ((i + 1) * len)};
-			//square.coords[2] = (vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)};
-			//square.coords[3] = (vec3_t) {x, y - ((j + 1) * len), z + (i * len)};
-//
-			//colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			//square.colour = pack_colour_to_uint32(&c);
-//
-			//left.squares[count++] = square;
-		//}
-	//}
-//
-	//// right
-	//face_t right = {0};
-	//count = 0;
-	//for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		//for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			//square_t square = {0};
-//
-			//square.coords[0] = (vec3_t) {x + CUBE_WIDTH, y - (j * len), z + (i * len)};
-			//square.coords[1] = (vec3_t) {x + CUBE_WIDTH, y - (j * len), z + ((i + 1) * len)};
-			//square.coords[2] = (vec3_t) {x + CUBE_WIDTH, y - ((j + 1) * len), z + ((i + 1) * len)};
-			//square.coords[3] = (vec3_t) {x + CUBE_WIDTH, y - ((j + 1) * len), z + (i * len)};
-//
-			//colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
-			//square.colour = pack_colour_to_uint32(&c);
-//
-			//right.squares[count++] = square;
-		//}
-	//}
-//
-	//// top
-	//face_t top = {0};
-	//count = 0;
-	//for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		//for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			//square_t square = {0};
-//
-			//square.coords[0] = (vec3_t) {x + (i * len), y, z + (j * len)};
-			//square.coords[1] = (vec3_t) {x + ((i + 1) * len), y, z + (j * len)};
-			//square.coords[2] = (vec3_t) {x + ((i + 1) * len), y, z + ((j + 1) * len)};
-			//square.coords[3] = (vec3_t) {x + (i * len), y, z + ((j + 1) * len)};
-//
-			//// 0 as that is the top texture
-			//colour_t c = texture->data[j * TEXTURE_WIDTH + i];
-			//square.colour = pack_colour_to_uint32(&c);
-//
-			//top.squares[count++] = square;
-		//}
-	//}
-//
-	//// bottom
-	//face_t bottom = {0};
-	//count = 0;
-	//for (int i = 0; i < TEXTURE_WIDTH; i++) {
-		//for (int j = 0; j < TEXTURE_WIDTH; j++) {
-			//square_t square = {0};
-//
-			//square.coords[0] = (vec3_t) {x + (i * len), y - CUBE_WIDTH, z + (j * len)};
-			//square.coords[1] = (vec3_t) {x + ((i + 1) * len), y - CUBE_WIDTH, z + (j * len)};
-			//square.coords[2] = (vec3_t) {x + ((i + 1) * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
-			//square.coords[3] = (vec3_t) {x + (i * len), y - CUBE_WIDTH, z + ((j + 1) * len)};
-//
-			//// 1, as the top face textures are the first square of the texture image
-			//colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
-			//square.colour = pack_colour_to_uint32(&c);
-//
-			//bottom.squares[count++] = square;
-		//}
-	//}
-//
-	//cube.faces[TOP] = top;
-	//cube.faces[TOP].dir = TOP;
-//
-	//cube.faces[FRONT] = front;
-	//cube.faces[FRONT].dir = FRONT;
-//
-	//cube.faces[LEFT] = left;
-	//cube.faces[LEFT].dir = LEFT;
-//
-	//cube.faces[BACK] = back;
-	//cube.faces[BACK].dir = BACK;
-//
-	//cube.faces[RIGHT] = right;
-	//cube.faces[RIGHT].dir = RIGHT;
-//
-	//cube.faces[BOTTOM] = bottom;
-	//cube.faces[BOTTOM].dir = BOTTOM;
-//
-	//array->items[array->count++] = cube;
-//
-	//return;
 }
 
 void clear_screen(colour_t colour) {
@@ -1645,30 +1495,26 @@ void handle_input()
 	camera_pos.y += CUBE_WIDTH;
 
 	//vec3_t pos = {camera_pos.x + 2 * CUBE_WIDTH, camera_pos.y - 0.5 * CUBE_WIDTH, camera_pos.z + 0.5 * CUBE_WIDTH};
-	//if (keys[one]) {
-		//hotbar_selection = 0;
+	if (keys[one]) {
+		hotbar_selection = 0;
 		//hand_cubes.count = 0;
-		//add_cube_to_cubes_array(pos, grass_texture, &hand_cubes);
 		//render_hand();
-	//}
-	//if (keys[two]) {
-		//hotbar_selection = 1;
+	}
+	if (keys[two]) {
+		hotbar_selection = 1;
 		//hand_cubes.count = 0;
-		//add_cube_to_cubes_array(pos, stone_texture, &hand_cubes);
 		//render_hand();
-	//}
-	//if (keys[three]) {
-		//hotbar_selection = 2;
+	}
+	if (keys[three]) {
+		hotbar_selection = 2;
 		//hand_cubes.count = 0;
-		//add_cube_to_cubes_array(pos, wood_texture, &hand_cubes);
 		//render_hand();
-	//}
-	//if (keys[four]) {
-		//hotbar_selection = 3;
+	}
+	if (keys[four]) {
+		hotbar_selection = 3;
 		//hand_cubes.count = 0;
-		//add_cube_to_cubes_array(pos, leaf_texture, &hand_cubes);
 		//render_hand();
-	//}
+	}
 }
 
 void handle_mouse() {
@@ -2178,26 +2024,26 @@ void generate_chunk(chunk_t *chunk) {
 					back = 0;
 				}
 
-				bruh_top = 0;
-				bruh_left = 0;
-				bruh_right = 0;
-				bruh_front = 0;
-				bruh_back = 0;
-				bruh_bottom = 1;
+				int cube_top = 0;
+				int cube_left = 0;
+				int cube_right = 0;
+				int cube_front = 0;
+				int cube_back = 0;
+				int cube_bottom = 1;
 
 				if (front >= y) {
-					bruh_front = 1;
+					cube_front = 1;
 				}
 				if (back >= y) {
-					bruh_back = 1;
+					cube_back = 1;
 				}
 				if (right >= y) {
-					bruh_right = 1;
+					cube_right = 1;
 				}
 				if (left >= y) {
-					bruh_left = 1;
+					cube_left = 1;
 				}
-				bruh_top = 0;
+				cube_top = 0;
 				
 				if (y > perlin_y) {
 					// air
@@ -2207,27 +2053,26 @@ void generate_chunk(chunk_t *chunk) {
 					// grass
 					texture = grass_texture;
 				}
+				else if (y == 0) {
+					// stone
+					texture = stone_texture;
+					cube_top = 1;
+				}
 				else {
 					// dirt
 					texture = dirt_texture;
-					bruh_top = 1;
+					cube_top = 1;
 				}
 				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].texture = texture;
-				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].left_neighbour = bruh_left;
-				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].right_neighbour = bruh_right;
-				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].front_neighbour = bruh_front;
-				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].back_neighbour = bruh_back;
-				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].top_neighbour = bruh_top;
-				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].bottom_neighbour = bruh_bottom;
+				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].left_neighbour = cube_left;
+				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].right_neighbour = cube_right;
+				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].front_neighbour = cube_front;
+				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].back_neighbour = cube_back;
+				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].top_neighbour = cube_top;
+				chunk->cubes[x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH)].bottom_neighbour = cube_bottom;
 			}
 		}
 	}
-	bruh_top = 0;
-	bruh_bottom = 0;
-	bruh_left = 0;
-	bruh_right = 0;
-	bruh_front = 0;
-	bruh_back = 0;
 }
 
 //gpt perlin:
@@ -2313,7 +2158,7 @@ int square_surrounds_centre(square_t *square) {
 		if (square->coords[i].y < top_y) {
 			top_y = square->coords[i].y;
 		}
-		if (square->coords[i].z < 0) {
+		if (square->coords[i].z == 0) {
 			count++;
 		}
 	}
