@@ -6,6 +6,9 @@ that I can update each frame with my own functions,
 this is my attempt to make a 3D game like minecraft!
 I have used gpt to help write the x11 or winapi parts of the code,
 so I can just have my array of pixels that I update each frame.
+I also used gpt to make the write and read PPM functions as this does not
+interest me, and also for perlin noise, as this is outside the scope of this project
+but I thought it would be nice to have. Everything else is from scratch.
 
 Work done so far:
  - a fill function that takes 4 points and a colour, and fills the screen with that colour
@@ -15,22 +18,23 @@ Work done so far:
  - simple cubicy collisions
  - simple hotbar
  - don't draw back faces, or faces with a neighbouring face
- - chunk system with dynamically saved edits
- - tree generation saved using the edits
+ - chunk system with dynamically saved chunk edits
+ - chunk generation from a given noise function
+ - tree generation saved using the chunk edits
  - fog at chunk borders
  - day night cycle
 
 Known issues:
- - since switching from old branch to the new main, some rendering bugs have been introduced
- - removing blocks at chunk borders does not update neighbour faces in neighbour chunks
- - some collision issues when passing chunk borders
+ - collision issues when passing chunk borders
+ - rendering issues when some points of a square have negative z values
 
-linux:  
-gcc -o main.o -lX11 -lm -O3 -march=native ./linux2.c  
-Windows:  
-gcc -o main.exe -lgdi32 -mwindows -O3 -march=native .\main-windows.c  
+To compile:
+ - linux:  
+   - gcc -o main.o -lX11 -lm -O3 -march=native ./linux2.c  
+ - Windows:  
+   - gcc -o main.exe -lgdi32 -mwindows -O3 -march=native .\main-windows.c  
 
-Some dev screenshots:
+Dev screenshots:
 
 ![screenshot](pics/screenshot0.png)
 ![screenshot](pics/screenshot.png)
