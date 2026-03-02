@@ -1811,7 +1811,7 @@ void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_p
 	}
 
 	// sort the faces based on their distance to the camera
-	qsort(faces_array, index + 6, sizeof(face_t), compare_faces);
+	qsort(faces_array, index, sizeof(face_t), compare_faces);
 	return;
 }
 
@@ -1895,7 +1895,7 @@ void set_light_level(colour_t *c, float fog_r) {
 	float b = ((float)c->b) * illumination;
 
 	if (r < 0) {
-		r == 0;
+		r = 0;
 	}
 	else if (r > c->r) {
 		r = c->r;
