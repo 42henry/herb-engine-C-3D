@@ -55,4 +55,6 @@ Dev screenshots:
 ![screenshot](pics/screenshot10.png)
 ![screenshot](pics/screenshot11.png)
 ![screenshot](pics/screenshot12.png)
+![screenshot](pics/screenshot13.png)
+![screenshot](pics/screenshot14.png)
 
