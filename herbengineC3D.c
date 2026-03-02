@@ -11,7 +11,7 @@
 
 // split render_chunks function, and then use it to render hand and hotbar
 
-// fix hotbar and hand UI
+// fix hotbar UI
 
 // fix collision issue where you get stuck in a block at a chunk boundary
 // fix rendering issue when some points have -z the square draws rlly big on screen
@@ -211,7 +211,7 @@ static colour_t get_pixel_colour(vec2_t coord);
 
 // rendering
 static vec3_t rotate_and_project(vec3_t pos);
-static void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot);
+static vec3_t rotate_and_project_by_rot_value(vec3_t pos, float x_rot, float y_rot);
 
 static int square_surrounds_centre_of_screen(square_t *square);
 static int compare_faces(const void *one, const void *two);
@@ -220,7 +220,7 @@ static void set_fog_level(colour_t *c, float fog_r);
 static void set_light_level(colour_t *c, float fog_r);
 
 static void render_chunks();
-static void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, face_t *faces_array, int index);
+static void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_pos, face_t *faces_array, int index);
 
 // cubes handling
 static void player_place_cube();
@@ -316,6 +316,14 @@ static colour_t max_sky = {0};
 static colour_t hotbar_colour = {0};
 
 static face_t hotbar_faces[HOTBAR_SLOTS * 6];
+static face_t hand_grass_faces[6];
+static face_t hand_stone_faces[6];
+static face_t hand_wood_faces[6];
+static face_t hand_leaf_faces[6];
+static face_t hand_sand_faces[6];
+static face_t hand_water_faces[6];
+static vec3_t hand_pos = {0};
+static int hand_index;
 
 static int hotbar_y;
 static int hotbar_x;
@@ -412,9 +420,6 @@ void init_stuff() {
 	hotbar_selection = 0;
 	small_height = HEIGHT * 0.01;
 
-	vec3_t pos = {0, 0, -100};
-	render_cube_to_faces_array((cube_t){.texture = grass_texture}, pos, hotbar_faces, 0);
-
 	// - rendering
 	generate_textures();
 
@@ -433,8 +438,19 @@ void init_stuff() {
 	sky.g = 0;
 	sky.b = 0;
 
-	//vec3_t pos = {player_pos.x + 2 * CUBE_WIDTH, player_pos.y - 0.5 * CUBE_WIDTH, player_pos.z + 0.5 * CUBE_WIDTH};
-	//render_hand();
+	vec3_t pos = {1000, 0, 1000};
+	//render_cube_to_faces_array(grass_texture, pos, hotbar_faces, 0);
+
+	hand_pos.x = -2000;
+	hand_pos.y = -600;
+	hand_pos.z = -1000;
+	render_cube_to_faces_array(grass_texture, hand_pos, hand_grass_faces, 0);
+	render_cube_to_faces_array(stone_texture, hand_pos, hand_stone_faces, 0);
+	render_cube_to_faces_array(wood_texture, hand_pos, hand_wood_faces, 0);
+	render_cube_to_faces_array(leaf_texture, hand_pos, hand_leaf_faces, 0);
+	render_cube_to_faces_array(sand_texture, hand_pos, hand_sand_faces, 0);
+	render_cube_to_faces_array(water_texture, hand_pos, hand_water_faces, 0);
+	hand_index = 0;
 
 	// - chunks
 	occupied_chunk_index = NUM_CHUNKS / 2;
@@ -638,7 +654,7 @@ void handle_input() {
 		if (space_was_pressed) {
 
 			if (frame - last_space_frame < space_to_fly_frame_interval) {
-				flying = 1;	
+				flying ? (flying = 0) : (flying = 1);	
 				jump_amount = 0;
 			}
 
@@ -723,32 +739,29 @@ void handle_input() {
 		}
 	}
 
-	//vec3_t pos = {player_pos.x + 2 * CUBE_WIDTH, player_pos.y - 0.5 * CUBE_WIDTH, player_pos.z + 0.5 * CUBE_WIDTH};
 	if (keys[one]) {
 		hotbar_selection = 0;
-		//hand_cubes.count = 0;
-		//render_hand();
+		hand_index = 0;
 	}
 	if (keys[two]) {
 		hotbar_selection = 1;
-		//hand_cubes.count = 0;
-		//render_hand();
+		hand_index = 1;
 	}
 	if (keys[three]) {
 		hotbar_selection = 2;
-		//hand_cubes.count = 0;
-		//render_hand();
+		hand_index = 2;
 	}
 	if (keys[four]) {
 		hotbar_selection = 3;
-		//hand_cubes.count = 0;
-		//render_hand();
+		hand_index = 3;
 	}
 	if (keys[five]) {
 		hotbar_selection = 4;
+		hand_index = 4;
 	}
 	if (keys[six]) {
 		hotbar_selection = 5;
+		hand_index = 5;
 	}
 	return;
 }
@@ -831,8 +844,8 @@ void update_pixels() {
 	draw_all_faces();
 
 	draw_cursor();
-	//draw_hand();
-	draw_hotbar();
+	draw_hand();
+	//draw_hotbar();
 
 	return;
 }
@@ -1130,11 +1143,38 @@ void draw_hotbar() {
 }
 
 void draw_hand() {
-	//for (int i = 0; i < hand_faces.count; i++) {
-		//for (int j = 0; j < SQUARES_PER_FACE; j++) {
-			//fill_square(&hand_faces.items[i].squares[j]);
-		//}
-	//}
+	face_t *faces;
+	switch (hand_index) {
+		case 0: {
+			faces = hand_grass_faces;
+			break;
+		}
+		case 1: {
+			faces = hand_stone_faces;
+			break;
+		}
+		case 2: {
+			faces = hand_wood_faces;
+			break;
+		}
+		case 3: {
+			faces = hand_leaf_faces;
+			break;
+		}
+		case 4: {
+			faces = hand_stone_faces;
+			break;
+		}
+		case 5: {
+			faces = hand_water_faces;
+			break;
+		}
+	}
+	for (int i = 0; i < 6; i++) {
+		for (int j = 0; j < SQUARES_PER_FACE; j++) {
+			fill_square(&faces[i].squares[j]);
+		}
+	}
 	return;
 }
 
@@ -1541,17 +1581,18 @@ void render_chunks() {
 	return;
 }
 
-void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, face_t *faces_array, int index) {
+void render_cube_to_faces_array(texture_t *texture, vec3_t cube_top_left_front_pos, face_t *faces_array, int index) {
 
 	int len = CUBE_WIDTH / TEXTURE_WIDTH;
 	int texture_side = SQUARES_PER_FACE;
-
-	texture_t *texture = cube.texture;
 
 	// top left coord
 	int x1 = cube_top_left_front_pos.x;
 	int y1 = cube_top_left_front_pos.y;
 	int z1 = cube_top_left_front_pos.z;
+
+	float x_rot = 3;
+	float y_rot = 0;
 
 	for (int face_i = 0; face_i < 6; face_i++) {
 
@@ -1567,9 +1608,9 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 			case TOP: {
 
 				// top left coord
-				int x = x1 - player_pos.x;
-				int y = y1 - player_pos.y;
-				int z = z1 - player_pos.z;
+				int x = x1;
+				int y = y1;
+				int z = z1;
 
 				centre_x = x + CUBE_WIDTH / 2;
 				centre_y = y;
@@ -1580,10 +1621,10 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 					for (int j = 0; j < TEXTURE_WIDTH; j++) {
 						square_t square = {0};
 
-						square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y, z + (j * len)});
-						square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y, z + (j * len)});
-						square.coords[2] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y, z + ((j + 1) * len)});
-						square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y, z + ((j + 1) * len)});
+						square.coords[0] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y, z + (j * len)}, x_rot, y_rot);
+						square.coords[1] = rotate_and_project_by_rot_value((vec3_t) {x + ((i + 1) * len), y, z + (j * len)}, x_rot, y_rot);
+						square.coords[2] = rotate_and_project_by_rot_value((vec3_t) {x + ((i + 1) * len), y, z + ((j + 1) * len)}, x_rot, y_rot);
+						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y, z + ((j + 1) * len)}, x_rot, y_rot);
 
 						// 0 as that is the top texture
 						colour_t c = texture->data[j * TEXTURE_WIDTH + i];
@@ -1600,9 +1641,9 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 			}
 			case BOTTOM: {
 				// top left coord
-				int x = x1 - player_pos.x;
-				int y = y1 - player_pos.y - CUBE_WIDTH;
-				int z = z1 - player_pos.z;
+				int x = x1;
+				int y = y1 - CUBE_WIDTH;
+				int z = z1;
 
 				centre_x = x + CUBE_WIDTH / 2;
 				centre_y = y;
@@ -1613,10 +1654,10 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 					for (int j = 0; j < TEXTURE_WIDTH; j++) {
 						square_t square = {0};
 
-						square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y, z + (j * len)});
-						square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y, z + (j * len)});
-						square.coords[2] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y, z + ((j + 1) * len)});
-						square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y, z + ((j + 1) * len)});
+						square.coords[0] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y, z + (j * len)}, x_rot, y_rot);
+						square.coords[1] = rotate_and_project_by_rot_value((vec3_t) {x + ((i + 1) * len), y, z + (j * len)}, x_rot, y_rot);
+						square.coords[2] = rotate_and_project_by_rot_value((vec3_t) {x + ((i + 1) * len), y, z + ((j + 1) * len)}, x_rot, y_rot);
+						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y, z + ((j + 1) * len)}, x_rot, y_rot);
 
 						// 1, as the top face textures are the first square of the texture image
 						colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
@@ -1633,9 +1674,9 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 			}
 			case FRONT: {
 				// top left coord
-				int x = x1 - player_pos.x;
-				int y = y1 - player_pos.y;
-				int z = z1 - player_pos.z;
+				int x = x1;
+				int y = y1;
+				int z = z1;
 
 				centre_x = x + CUBE_WIDTH / 2;
 				centre_y = y - CUBE_WIDTH / 2;
@@ -1646,10 +1687,10 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 					for (int j = 0; j < TEXTURE_WIDTH; j++) {
 						square_t square = {0};
 
-						square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y - (j * len), z});
-						square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - (j * len), z});
-						square.coords[2] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z});
-						square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y - ((j + 1) * len), z});
+						square.coords[0] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y - (j * len), z}, x_rot, y_rot);
+						square.coords[1] = rotate_and_project_by_rot_value((vec3_t) {x + ((i + 1) * len), y - (j * len), z}, x_rot, y_rot);
+						square.coords[2] = rotate_and_project_by_rot_value((vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z}, x_rot, y_rot);
+						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y - ((j + 1) * len), z}, x_rot, y_rot);
 
 						// 2, as the side face textures are the 2nd square of the texture image
 						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
@@ -1666,9 +1707,9 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 			}
 			case BACK: {
 				// top left coord
-				int x = x1 - player_pos.x;
-				int y = y1 - player_pos.y;
-				int z = z1 - player_pos.z + CUBE_WIDTH;
+				int x = x1;
+				int y = y1;
+				int z = z1 + CUBE_WIDTH;
 
 				centre_x = x + CUBE_WIDTH / 2;
 				centre_y = y - CUBE_WIDTH / 2;
@@ -1679,10 +1720,10 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 					for (int j = 0; j < TEXTURE_WIDTH; j++) {
 						square_t square = {0};
 
-						square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y - (j * len), z});
-						square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - (j * len), z});
-						square.coords[2] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z});
-						square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y - ((j + 1) * len), z});
+						square.coords[0] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y - (j * len), z}, x_rot, y_rot);
+						square.coords[1] = rotate_and_project_by_rot_value((vec3_t) {x + ((i + 1) * len), y - (j * len), z}, x_rot, y_rot);
+						square.coords[2] = rotate_and_project_by_rot_value((vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z}, x_rot, y_rot);
+						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x + (i * len), y - ((j + 1) * len), z}, x_rot, y_rot);
 
 						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 
@@ -1698,9 +1739,9 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 			}
 			case LEFT: {
 				// top left coord
-				int x = x1 - player_pos.x;
-				int y = y1 - player_pos.y;
-				int z = z1 - player_pos.z;
+				int x = x1;
+				int y = y1;
+				int z = z1;
 
 				centre_x = x;
 				centre_y = y - CUBE_WIDTH / 2;
@@ -1711,10 +1752,10 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 					for (int j = 0; j < TEXTURE_WIDTH; j++) {
 						square_t square = {0};
 
-						square.coords[0] = rotate_and_project((vec3_t) {x, y - (j * len), z + (i * len)});
-						square.coords[1] = rotate_and_project((vec3_t) {x, y - (j * len), z + ((i + 1) * len)});
-						square.coords[2] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)});
-						square.coords[3] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + (i * len)});
+						square.coords[0] = rotate_and_project_by_rot_value((vec3_t) {x, y - (j * len), z + (i * len)}, x_rot, y_rot);
+						square.coords[1] = rotate_and_project_by_rot_value((vec3_t) {x, y - (j * len), z + ((i + 1) * len)}, x_rot, y_rot);
+						square.coords[2] = rotate_and_project_by_rot_value((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)}, x_rot, y_rot);
+						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x, y - ((j + 1) * len), z + (i * len)}, x_rot, y_rot);
 
 						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 
@@ -1730,9 +1771,9 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 			}
 			case RIGHT: {
 				// top left coord
-				int x = x1 - player_pos.x + CUBE_WIDTH;
-				int y = y1 - player_pos.y;
-				int z = z1 - player_pos.z;
+				int x = x1 + CUBE_WIDTH;
+				int y = y1;
+				int z = z1;
 
 				centre_x = x;
 				centre_y = y - CUBE_WIDTH / 2;
@@ -1743,10 +1784,10 @@ void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, fac
 					for (int j = 0; j < TEXTURE_WIDTH; j++) {
 						square_t square = {0};
 
-						square.coords[0] = rotate_and_project((vec3_t) {x, y - (j * len), z + (i * len)});
-						square.coords[1] = rotate_and_project((vec3_t) {x, y - (j * len), z + ((i + 1) * len)});
-						square.coords[2] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)});
-						square.coords[3] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + (i * len)});
+						square.coords[0] = rotate_and_project_by_rot_value((vec3_t) {x, y - (j * len), z + (i * len)}, x_rot, y_rot);
+						square.coords[1] = rotate_and_project_by_rot_value((vec3_t) {x, y - (j * len), z + ((i + 1) * len)}, x_rot, y_rot);
+						square.coords[2] = rotate_and_project_by_rot_value((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)}, x_rot, y_rot);
+						square.coords[3] = rotate_and_project_by_rot_value((vec3_t) {x, y - ((j + 1) * len), z + (i * len)}, x_rot, y_rot);
 
 						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
 
@@ -1911,65 +1952,37 @@ vec3_t rotate_and_project(vec3_t pos) {
 	return new_pos;
 }
 
-void rotate_and_project_by_rot_value(vec3_t *pos, vec3_t *new_pos, float x_rot, float y_rot) {
+vec3_t rotate_and_project_by_rot_value(vec3_t pos, float x_rot, float y_rot) {
 
 	// rotate
-	new_pos->x = (pos->z * sin(x_rot) + pos->x * cos(x_rot));
-	int z2 = (pos->z * cos(x_rot) - pos->x * sin(x_rot));
+	vec3_t new_pos;
+	new_pos.x = (pos.z * sin(x_rot) + pos.x * cos(x_rot));
+	int z2 = (pos.z * cos(x_rot) - pos.x * sin(x_rot));
 
-	new_pos->y = (z2 * sin(y_rot) + pos->y * cos(y_rot));
-	new_pos->z = (z2 * cos(y_rot) - pos->y * sin(y_rot));
+	new_pos.y = (z2 * sin(y_rot) + pos.y * cos(y_rot));
+	new_pos.z = (z2 * cos(y_rot) - pos.y * sin(y_rot));
 
 	int neg = 0;
-	if (new_pos->z == 0) {
+	if (new_pos.z == 0) {
 		neg = 1;
 		// avoid divide by 0
-		new_pos->z = 7;
+		new_pos.z = 7;
 	}
 
 	// project
-	float percent_size = ((float)((WIDTH / 10) * FOV) / new_pos->z);
-	new_pos->x *= percent_size;
-	new_pos->y *= percent_size;
+	float percent_size = ((float)((WIDTH / 10) * FOV) / new_pos.z);
+	new_pos.x *= percent_size;
+	new_pos.y *= percent_size;
 
 	// convert from standard grid to screen grid
-	new_pos->x = new_pos->x + WIDTH / 2;
-	new_pos->y = -new_pos->y + HEIGHT / 2;
+	new_pos.x = new_pos.x + WIDTH / 2;
+	new_pos.y = -new_pos.y + HEIGHT / 2;
 
 	if (neg) {
-		new_pos->z = -1;
+		new_pos.z = -1;
 	}
 
-	return;
-}
-
-void render_hotbar() {
-			//// for each square of each face of the cube
-			//for (int k = 0; k < SQUARES_PER_FACE; k++) {
-//
-			    //square_t new_square = {0};
-				//for (int l = 0; l < 4; l++) {
-					//vec3_t pos = {0};
-					//pos.x = hotbar_cubes.items[i].faces[j].squares[k].coords[l].x;
-					//pos.y = hotbar_cubes.items[i].faces[j].squares[k].coords[l].y;
-					//pos.z = hotbar_cubes.items[i].faces[j].squares[k].coords[l].z;
-					//pos.x -= player_pos.x;
-					//pos.y -= player_pos.y;
-					//pos.z -= player_pos.z;
-//
-					//vec3_t new_pos = {0};
-					//rotate_and_project_by_rot_value(&pos, &new_pos, 0, 0);
-//
-					//new_square.coords[l].x = new_pos.x - (WIDTH / 2) + ((i + 1.2) * HOTBAR_SLOT_WIDTH);
-					//new_square.coords[l].y = new_pos.y + (HEIGHT / 2) - (HEIGHT - hotbar_y) - HOTBAR_SLOT_WIDTH;
-					//new_square.coords[l].z = new_pos.z;
-					//new_square.colour = hotbar_cubes.items[i].faces[j].squares[k].colour;
-				//}
-	return;
-}
-
-void render_hand() {
-	return;
+	return new_pos;
 }
 
 /* ------------------------------- cube handling ------------------------------- */
