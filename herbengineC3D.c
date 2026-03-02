@@ -2299,6 +2299,7 @@ void generate_chunk(int chunk_i) {
 					// plant a tree at the first air cube
 					if (rand() % 100 == 0) {
 						generate_tree((vec3_t) {x, y, z}, chunk_i);
+						continue;
 					}
 					else if (rand() % 6000 == 0) {
 						generate_frog_shrine((vec3_t) {x, y, z}, chunk_i);

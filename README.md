@@ -29,10 +29,18 @@ Known issues:
  - collision issues when passing chunk borders
  - rendering issues when some points of a square have negative z values
 
-Next steps:
+Performance:
  - from profiling I can see that the fill square function accounts for nearly half the total program instructions
  - cache hits seem good, so the next step would be to come up with a faster fill square algorithm...
- - I tried a few similar variations with fewer conditionals, but with little difference...
+ - I tried a few similar variations with fewer conditionals, but with little difference so I'm happy with this.
+
+Next steps:
+ - I've come up with a way to make the sunlight better:
+   - store the sun as a point on a semicircle centred around a cube, with a large enough radius
+   - as the point moves around, calculate the distance from each face of the cube, to the point
+   - the difference between the closest face, and the furthest face represents a scale from completely dark, to completely bright
+   - use that scale to colour each face a certain brightness based on their distance to the sun
+ - I'd also love to try use sockets to make multiplayer from scratch - or just use enet...
 
 To compile:
  - linux:  
