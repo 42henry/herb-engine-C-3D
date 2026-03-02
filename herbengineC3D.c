@@ -220,8 +220,7 @@ static void set_fog_level(colour_t *c, float fog_r);
 static void set_light_level(colour_t *c, float fog_r);
 
 static void render_chunks();
-static void render_hotbar();
-static void render_hand();
+static void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, face_t *faces_array, int index);
 
 // cubes handling
 static void player_place_cube();
@@ -315,6 +314,8 @@ static colour_t sky = {0};
 static colour_t max_sky = {0};
 
 static colour_t hotbar_colour = {0};
+
+static face_t hotbar_faces[HOTBAR_SLOTS * 6];
 
 static int hotbar_y;
 static int hotbar_x;
@@ -411,6 +412,9 @@ void init_stuff() {
 	hotbar_selection = 0;
 	small_height = HEIGHT * 0.01;
 
+	vec3_t pos = {0, 0, -100};
+	render_cube_to_faces_array((cube_t){.texture = grass_texture}, pos, hotbar_faces, 0);
+
 	// - rendering
 	generate_textures();
 
@@ -428,8 +432,6 @@ void init_stuff() {
 	sky.r = 0;
 	sky.g = 0;
 	sky.b = 0;
-
-	//render_hotbar();
 
 	//vec3_t pos = {player_pos.x + 2 * CUBE_WIDTH, player_pos.y - 0.5 * CUBE_WIDTH, player_pos.z + 0.5 * CUBE_WIDTH};
 	//render_hand();
@@ -1119,11 +1121,11 @@ void draw_hotbar() {
 		}
 	}
 
-	//for (int i = 0; i < hotbar_faces.count; i++) {
-		//for (int j = 0; j < SQUARES_PER_FACE; j++) {
-			//fill_square(&hotbar_faces.items[i].squares[j]);
-		//}
-	//}
+	for (int i = 0; i < 6 * HOTBAR_SLOTS; i++) {
+		for (int j = 0; j < SQUARES_PER_FACE; j++) {
+			fill_square(&hotbar_faces[i].squares[j]);
+		}
+	}
 	return;
 }
 
@@ -1536,6 +1538,239 @@ void render_chunks() {
 
 	// sort the faces based on their distance to the camera
 	qsort(draw_faces.items, draw_faces.count, sizeof(face_t), compare_faces);
+	return;
+}
+
+void render_cube_to_faces_array(cube_t cube, vec3_t cube_top_left_front_pos, face_t *faces_array, int index) {
+
+	int len = CUBE_WIDTH / TEXTURE_WIDTH;
+	int texture_side = SQUARES_PER_FACE;
+
+	texture_t *texture = cube.texture;
+
+	// top left coord
+	int x1 = cube_top_left_front_pos.x;
+	int y1 = cube_top_left_front_pos.y;
+	int z1 = cube_top_left_front_pos.z;
+
+	for (int face_i = 0; face_i < 6; face_i++) {
+
+		int highlight = 0;
+
+		float centre_x;
+		float centre_y;
+		float centre_z;
+
+		face_t face = {0};
+
+		switch (face_i) {
+			case TOP: {
+
+				// top left coord
+				int x = x1 - player_pos.x;
+				int y = y1 - player_pos.y;
+				int z = z1 - player_pos.z;
+
+				centre_x = x + CUBE_WIDTH / 2;
+				centre_y = y;
+				centre_z = z + CUBE_WIDTH / 2;
+
+				int count = 0;
+				for (int i = 0; i < TEXTURE_WIDTH; i++) {
+					for (int j = 0; j < TEXTURE_WIDTH; j++) {
+						square_t square = {0};
+
+						square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y, z + (j * len)});
+						square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y, z + (j * len)});
+						square.coords[2] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y, z + ((j + 1) * len)});
+						square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y, z + ((j + 1) * len)});
+
+						// 0 as that is the top texture
+						colour_t c = texture->data[j * TEXTURE_WIDTH + i];
+
+						square.colour = pack_colour_to_uint32(&c);
+						if (texture == water_texture) {
+							square.water = 1;
+						}
+
+						face.squares[count++] = square;
+					}
+				}
+				break;
+			}
+			case BOTTOM: {
+				// top left coord
+				int x = x1 - player_pos.x;
+				int y = y1 - player_pos.y - CUBE_WIDTH;
+				int z = z1 - player_pos.z;
+
+				centre_x = x + CUBE_WIDTH / 2;
+				centre_y = y;
+				centre_z = z + CUBE_WIDTH / 2;
+
+				int count = 0;
+				for (int i = 0; i < TEXTURE_WIDTH; i++) {
+					for (int j = 0; j < TEXTURE_WIDTH; j++) {
+						square_t square = {0};
+
+						square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y, z + (j * len)});
+						square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y, z + (j * len)});
+						square.coords[2] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y, z + ((j + 1) * len)});
+						square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y, z + ((j + 1) * len)});
+
+						// 1, as the top face textures are the first square of the texture image
+						colour_t c = texture->data[1 * texture_side + j * TEXTURE_WIDTH + i];
+
+						square.colour = pack_colour_to_uint32(&c);
+						if (texture == water_texture) {
+							square.water = 1;
+						}
+
+						face.squares[count++] = square;
+					}
+				}
+				break;
+			}
+			case FRONT: {
+				// top left coord
+				int x = x1 - player_pos.x;
+				int y = y1 - player_pos.y;
+				int z = z1 - player_pos.z;
+
+				centre_x = x + CUBE_WIDTH / 2;
+				centre_y = y - CUBE_WIDTH / 2;
+				centre_z = z;
+
+				int count = 0;
+				for (int i = 0; i < TEXTURE_WIDTH; i++) {
+					for (int j = 0; j < TEXTURE_WIDTH; j++) {
+						square_t square = {0};
+
+						square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y - (j * len), z});
+						square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - (j * len), z});
+						square.coords[2] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z});
+						square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y - ((j + 1) * len), z});
+
+						// 2, as the side face textures are the 2nd square of the texture image
+						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+
+						square.colour = pack_colour_to_uint32(&c);
+						if (texture == water_texture) {
+							square.water = 1;
+						}
+
+						face.squares[count++] = square;
+					}
+				}
+				break;
+			}
+			case BACK: {
+				// top left coord
+				int x = x1 - player_pos.x;
+				int y = y1 - player_pos.y;
+				int z = z1 - player_pos.z + CUBE_WIDTH;
+
+				centre_x = x + CUBE_WIDTH / 2;
+				centre_y = y - CUBE_WIDTH / 2;
+				centre_z = z;
+
+				int count = 0;
+				for (int i = 0; i < TEXTURE_WIDTH; i++) {
+					for (int j = 0; j < TEXTURE_WIDTH; j++) {
+						square_t square = {0};
+
+						square.coords[0] = rotate_and_project((vec3_t) {x + (i * len), y - (j * len), z});
+						square.coords[1] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - (j * len), z});
+						square.coords[2] = rotate_and_project((vec3_t) {x + ((i + 1) * len), y - ((j + 1) * len), z});
+						square.coords[3] = rotate_and_project((vec3_t) {x + (i * len), y - ((j + 1) * len), z});
+
+						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+
+						square.colour = pack_colour_to_uint32(&c);
+						if (texture == water_texture) {
+							square.water = 1;
+						}
+
+						face.squares[count++] = square;
+					}
+				}
+				break;
+			}
+			case LEFT: {
+				// top left coord
+				int x = x1 - player_pos.x;
+				int y = y1 - player_pos.y;
+				int z = z1 - player_pos.z;
+
+				centre_x = x;
+				centre_y = y - CUBE_WIDTH / 2;
+				centre_z = z + CUBE_WIDTH / 2;
+
+				int count = 0;
+				for (int i = 0; i < TEXTURE_WIDTH; i++) {
+					for (int j = 0; j < TEXTURE_WIDTH; j++) {
+						square_t square = {0};
+
+						square.coords[0] = rotate_and_project((vec3_t) {x, y - (j * len), z + (i * len)});
+						square.coords[1] = rotate_and_project((vec3_t) {x, y - (j * len), z + ((i + 1) * len)});
+						square.coords[2] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)});
+						square.coords[3] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + (i * len)});
+
+						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+
+						square.colour = pack_colour_to_uint32(&c);
+						if (texture == water_texture) {
+							square.water = 1;
+						}
+
+						face.squares[count++] = square;
+					}
+				}
+				break;
+			}
+			case RIGHT: {
+				// top left coord
+				int x = x1 - player_pos.x + CUBE_WIDTH;
+				int y = y1 - player_pos.y;
+				int z = z1 - player_pos.z;
+
+				centre_x = x;
+				centre_y = y - CUBE_WIDTH / 2;
+				centre_z = z + CUBE_WIDTH / 2;
+
+				int count = 0;
+				for (int i = 0; i < TEXTURE_WIDTH; i++) {
+					for (int j = 0; j < TEXTURE_WIDTH; j++) {
+						square_t square = {0};
+
+						square.coords[0] = rotate_and_project((vec3_t) {x, y - (j * len), z + (i * len)});
+						square.coords[1] = rotate_and_project((vec3_t) {x, y - (j * len), z + ((i + 1) * len)});
+						square.coords[2] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + ((i + 1) * len)});
+						square.coords[3] = rotate_and_project((vec3_t) {x, y - ((j + 1) * len), z + (i * len)});
+
+						colour_t c = texture->data[2 * texture_side + j * TEXTURE_WIDTH + i];
+
+						square.colour = pack_colour_to_uint32(&c);
+						if (texture == water_texture) {
+							square.water = 1;
+						}
+
+						face.squares[count++] = square;
+					}
+				}
+				break;
+			}
+        }
+
+		float r = sqrt((centre_x * centre_x) + (centre_y * centre_y) + (centre_z * centre_z));
+		face.r = r;
+
+		faces_array[index++] = face;
+
+	}
+
+	// sort the faces based on their distance to the camera
+	qsort(faces_array, index + 6, sizeof(face_t), compare_faces);
 	return;
 }
 
