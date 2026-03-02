@@ -33,7 +33,7 @@
 // this should be odd for the best effect - 
 // this way the player will be in a central chunk at all times
 // as the chunks are layed out in a square
-#define SQRT_NUM_CHUNKS 5
+#define SQRT_NUM_CHUNKS 7
 
 #define NUM_CHUNKS (SQRT_NUM_CHUNKS * SQRT_NUM_CHUNKS)
 #define CHUNK_WIDTH 16
@@ -705,7 +705,7 @@ void handle_mouse() {
 
 /* ------------------------------- drawing ------------------------------- */
 uint32_t pack_colour_to_uint32(colour_t *colour) {
-    return (1 << 24 | colour->r << 16) | (colour->g << 8) | colour->b;
+    return (colour->r << 16) | (colour->g << 8) | colour->b;
 }
 
 colour_t unpack_colour_from_uint32(uint32_t packed_colour) {
