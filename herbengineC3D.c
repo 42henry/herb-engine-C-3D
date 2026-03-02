@@ -205,6 +205,11 @@ static void generate_chunk(int chunk_i);
 static void update_chunks(int dir);
 static void save_chunk_edit(int chunk_i, int cube_i, texture_t *texture);
 
+static void generate_tree(vec3_t pos, int chunk_i);
+static void generate_obelisk(vec3_t pos, int chunk_i);
+static void generate_frog_shrine(vec3_t pos, int chunk_i);
+static void generate_easter_island_statue(vec3_t pos, int chunk_i);
+
 // textures
 void generate_textures();
 
@@ -2297,191 +2302,16 @@ void generate_chunk(int chunk_i) {
 
 					// plant a tree at the first air cube
 					if (rand() % 100 == 0) {
-						// check boundaries
-						if (x < 2 || x > CHUNK_WIDTH - 2) {
-							continue;
-						}
-						if (z < 2 || z > CHUNK_WIDTH - 2) {
-							continue;
-						}
-						int max_h = 3 + rand() % 10;
-						if (y > CHUNK_WIDTH - max_h - 1) {
-							continue;
-						}
-						int h = 0;
-						for (h = 0; h < max_h; h++) {
-							if (h + 1 > CHUNK_WIDTH) {
-								break;
-							}
-							int i = (x + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-							generate_cube(chunk_i, i, wood_texture);
-						}
-
-						h--;
-						int i = ((x + 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, leaf_texture);
-
-						i = ((x - 1) + ((y + h) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, leaf_texture);
-
-						i = (x + ((y + h) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, leaf_texture);
-
-						i = (x + ((y + h) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, leaf_texture);
-
-						i = (x + ((y + h + 1) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, leaf_texture);
-
+						generate_tree((vec3_t) {x, y, z}, chunk_i);
 					}
 					else if (rand() % 6000 == 0) {
-						// frog statue
-						// check boundaries
-						if (x < 4 || x > CHUNK_WIDTH - 4) {
-							continue;
-						}
-						if (z < 4 || z > CHUNK_WIDTH - 4) {
-							continue;
-						}
-						if (y > CHUNK_WIDTH - 4) {
-							continue;
-						}
-
-						for (int j = 0; j < 5; j++) {
-							int i = (x + j + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-							generate_cube(chunk_i, i, stone_texture);
-
-							i = (x + j + (y * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-							generate_cube(chunk_i, i, stone_texture);
-
-							i = (x + j + ((y + 1) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-							generate_cube(chunk_i, i, stone_texture);
-
-							i = (x + j + ((y + 1) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-							generate_cube(chunk_i, i, stone_texture);
-
-							i = (x + j + (y * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-							generate_cube(chunk_i, i, stone_texture);
-						}
-
-						int i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, leaf_texture);
-						i = (x + 1 + ((y + 3) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-
-						i = (x + 2 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 2 + ((y + 1) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-
-						i = (x + 3 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, leaf_texture);
-						i = (x + 3 + ((y + 3) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 3 + ((y + 2) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-
-						i = (x + 1 + (y * CHUNK_WIDTH) + ((z - 2) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 3 + (y * CHUNK_WIDTH) + ((z - 2) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-
-						i = (x + 1 + (y * CHUNK_WIDTH) + ((z + 2) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 2 + (y * CHUNK_WIDTH) + ((z + 2) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 3 + (y * CHUNK_WIDTH) + ((z + 2) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
+						generate_frog_shrine((vec3_t) {x, y, z}, chunk_i);
 					}
 					else if (rand() % 9000 == 0) {
-						// obelisk
-						// check boundaries
-						if (x < 4 || x > CHUNK_WIDTH - 4) {
-							continue;
-						}
-						if (z < 4 || z > CHUNK_WIDTH - 4) {
-							continue;
-						}
-						if (y > CHUNK_WIDTH - 6) {
-							continue;
-						}
-
-						for (int j = 0; j < 6; j++) {
-							for (int k = 0; k < 3; k++) {
-								int i = (x + k + ((y + j) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-								generate_cube(chunk_i, i, stone_texture);
-								i = (x + k + ((y + j) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-								generate_cube(chunk_i, i, stone_texture);
-							}
-						}
+						generate_obelisk((vec3_t) {x, y, z}, chunk_i);
 					}
 					else if (rand() % 3000 == 0) {
-						// easter island statue
-						// check boundaries
-						if (x < 4 || x > CHUNK_WIDTH - 4) {
-							continue;
-						}
-						if (z < 4 || z > CHUNK_WIDTH - 4) {
-							continue;
-						}
-						if (y > CHUNK_WIDTH - 6) {
-							continue;
-						}
-
-						for (int j = 2; j < 6; j++) {
-							for (int k = 0; k < 3; k++) {
-								int i = (x + k + ((y + j) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-								generate_cube(chunk_i, i, stone_texture);
-							}
-						}
-						for (int k = 0; k < 3; k++) {
-							int i = (x + k + ((y + 5) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-							generate_cube(chunk_i, i, stone_texture);
-						}
-						int i = (x + ((y + 4) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, leaf_texture);
-						i = (x + 2 + ((y + 4) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, leaf_texture);
-
-						for (int j = 2; j < 6; j++) {
-							int i = (x + 1 + ((y + j) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-							generate_cube(chunk_i, i, stone_texture);
-						}
-						i = (x + 0 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 2 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-
-						i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-
-						i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x - 1 + ((y + 2) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 3 + ((y + 2) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-
-						i = (x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + (y * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-
-						i = (x + 2 + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-						i = (x + 2 + (y * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
-						generate_cube(chunk_i, i, stone_texture);
-
-						for (int j = 0; j < 2; j++) {
-							for (int k = 0; k < 3; k++) {
-								int i = (x + k + ((y + 1) * CHUNK_WIDTH) + ((z + j) * CHUNK_WIDTH * CHUNK_WIDTH));
-								generate_cube(chunk_i, i, stone_texture);
-							}
-						}
+						generate_easter_island_statue((vec3_t) {x, y, z}, chunk_i);
 					}
 
 					break;
@@ -2596,6 +2426,205 @@ void save_chunk_edit(int chunk_i, int cube_i, texture_t *texture) {
 			chunk_edits.items = realloc(chunk_edits.items, chunk_edits.capacity * sizeof(chunk_edit_t)); 
 		}
 		chunk_edits.items[chunk_edits.count++] = new_edit;
+	}
+}
+
+void generate_tree(vec3_t pos, int chunk_i) {
+	// check boundaries
+	if (pos.x < 2 || pos.x > CHUNK_WIDTH - 2) {
+		return;
+	}
+	if (pos.z < 2 || pos.z > CHUNK_WIDTH - 2) {
+		return;
+	}
+	int max_h = 3 + rand() % 10;
+	if (pos.y > CHUNK_WIDTH - max_h - 1) {
+		return;
+	}
+	int h = 0;
+	for (h = 0; h < max_h; h++) {
+		if (h + 1 > CHUNK_WIDTH) {
+			break;
+		}
+		int i = (pos.x + ((pos.y + h) * CHUNK_WIDTH) + (pos.z * CHUNK_WIDTH * CHUNK_WIDTH));
+		generate_cube(chunk_i, i, wood_texture);
+	}
+
+	h--;
+	int i = ((pos.x + 1) + ((pos.y + h) * CHUNK_WIDTH) + (pos.z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, leaf_texture);
+
+	i = ((pos.x - 1) + ((pos.y + h) * CHUNK_WIDTH) + (pos.z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, leaf_texture);
+
+	i = (pos.x + ((pos.y + h) * CHUNK_WIDTH) + ((pos.z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, leaf_texture);
+
+	i = (pos.x + ((pos.y + h) * CHUNK_WIDTH) + ((pos.z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, leaf_texture);
+
+	i = (pos.x + ((pos.y + h + 1) * CHUNK_WIDTH) + (pos.z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, leaf_texture);
+	return;
+}
+
+void generate_obelisk(vec3_t pos, int chunk_i) {
+	// obelisk
+	// check boundaries
+	if (pos.x < 4 || pos.x > CHUNK_WIDTH - 4) {
+		return;
+	}
+	if (pos.z < 4 || pos.z > CHUNK_WIDTH - 4) {
+		return;
+	}
+	if (pos.y > CHUNK_WIDTH - 6) {
+		return;
+	}
+
+	for (int j = 0; j < 6; j++) {
+		for (int k = 0; k < 3; k++) {
+			int i = (pos.x + k + ((pos.y + j) * CHUNK_WIDTH) + (pos.z * CHUNK_WIDTH * CHUNK_WIDTH));
+			generate_cube(chunk_i, i, stone_texture);
+			i = (pos.x + k + ((pos.y + j) * CHUNK_WIDTH) + ((pos.z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+			generate_cube(chunk_i, i, stone_texture);
+		}
+	}
+	return;
+}
+
+void generate_frog_shrine(vec3_t pos, int chunk_i) {
+	// frog statue
+	// check boundaries
+	int x = pos.x;
+	int y = pos.y;
+	int z = pos.z;
+
+	if (x < 4 || x > CHUNK_WIDTH - 4) {
+		return;
+	}
+	if (z < 4 || z > CHUNK_WIDTH - 4) {
+		return;
+	}
+	if (y > CHUNK_WIDTH - 4) {
+		return;
+	}
+
+	for (int j = 0; j < 5; j++) {
+		int i = (x + j + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+		generate_cube(chunk_i, i, stone_texture);
+
+		i = (x + j + (y * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+		generate_cube(chunk_i, i, stone_texture);
+
+		i = (x + j + ((y + 1) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+		generate_cube(chunk_i, i, stone_texture);
+
+		i = (x + j + ((y + 1) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+		generate_cube(chunk_i, i, stone_texture);
+
+		i = (x + j + (y * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+		generate_cube(chunk_i, i, stone_texture);
+	}
+
+	int i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, leaf_texture);
+	i = (x + 1 + ((y + 3) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+
+	i = (x + 2 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 2 + ((y + 1) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+
+	i = (x + 3 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, leaf_texture);
+	i = (x + 3 + ((y + 3) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 3 + ((y + 2) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+
+	i = (x + 1 + (y * CHUNK_WIDTH) + ((z - 2) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 3 + (y * CHUNK_WIDTH) + ((z - 2) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+
+	i = (x + 1 + (y * CHUNK_WIDTH) + ((z + 2) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 2 + (y * CHUNK_WIDTH) + ((z + 2) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 3 + (y * CHUNK_WIDTH) + ((z + 2) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	return;
+}
+
+void generate_easter_island_statue(vec3_t pos, int chunk_i) {
+	// check boundaries
+	int x = pos.x;
+	int y = pos.y;
+	int z = pos.z;
+	if (x < 4 || x > CHUNK_WIDTH - 4) {
+		return;
+	}
+	if (z < 4 || z > CHUNK_WIDTH - 4) {
+		return;
+	}
+	if (y > CHUNK_WIDTH - 6) {
+		return;
+	}
+
+	for (int j = 2; j < 6; j++) {
+		for (int k = 0; k < 3; k++) {
+			int i = (x + k + ((y + j) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+			generate_cube(chunk_i, i, stone_texture);
+		}
+	}
+	for (int k = 0; k < 3; k++) {
+		int i = (x + k + ((y + 5) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+		generate_cube(chunk_i, i, stone_texture);
+	}
+	int i = (x + ((y + 4) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, leaf_texture);
+	i = (x + 2 + ((y + 4) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, leaf_texture);
+
+	for (int j = 2; j < 6; j++) {
+		int i = (x + 1 + ((y + j) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+		generate_cube(chunk_i, i, stone_texture);
+	}
+	i = (x + 0 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 2 + ((y + 2) * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+
+	i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+
+	i = (x + 1 + ((y + 2) * CHUNK_WIDTH) + ((z - 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x - 1 + ((y + 2) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 3 + ((y + 2) * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+
+	i = (x + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + (y * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+
+	i = (x + 2 + (y * CHUNK_WIDTH) + (z * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+	i = (x + 2 + (y * CHUNK_WIDTH) + ((z + 1) * CHUNK_WIDTH * CHUNK_WIDTH));
+	generate_cube(chunk_i, i, stone_texture);
+
+	for (int j = 0; j < 2; j++) {
+		for (int k = 0; k < 3; k++) {
+			int i = (x + k + ((y + 1) * CHUNK_WIDTH) + ((z + j) * CHUNK_WIDTH * CHUNK_WIDTH));
+			generate_cube(chunk_i, i, stone_texture);
+		}
 	}
 }
 
