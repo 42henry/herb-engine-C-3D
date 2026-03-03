@@ -41,6 +41,11 @@ Next steps:
    - use that scale to colour each face a certain brightness based on their distance to the sun
  - I'd also love to try use sockets to make multiplayer from scratch - or just use enet...
  - biomes sounds like a tough nut to crack so I'd love to try that some time too!
+ - Also I should really only rotate and project 8 coords of the cube, and do the texturing afterwards...
+ - Instead of reinventing the wheel for everything, I'd love to build this again in C from scratch, but do research into how it's actually done!
+ - From minimal googling since finishing the project, I would love to do:
+     - Z buffering, vertex buffering (don't rebuild everything every frame, buffer verticies of faces we can see, only update if chunk changes, or cube changes)
+     - Frustrum culling
 
 To compile:
  - linux:  
