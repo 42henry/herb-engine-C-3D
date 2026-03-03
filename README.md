@@ -1,6 +1,6 @@
 # herb-engine-C3D
 
-Playground for 3D rendering from scratch
+Playground for 3D rendering from scratch!  
 I know nothing about graphics, all I want is an array of pixels,
 that I can update each frame with my own functions,
 this is my attempt to make a 3D game like minecraft!
