@@ -25,8 +25,7 @@ Work done so far:
  - transparent water blocks that don't have collisions
 
 Known issues:
- - collision issues when passing chunk borders
- - rendering issues when some points of a square have negative z values
+- rendering issues when some points of a square have negative z values
 
 Performance:
  - from profiling I can see that the fill square function accounts for nearly half the total program instructions
