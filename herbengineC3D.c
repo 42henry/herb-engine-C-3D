@@ -5,7 +5,6 @@
 
 /* -------------------------- TODO list -------------------------- */
 
-// fix collision issue where you get stuck in a block at a chunk boundary - probs just have to check adjacent chunks too
 // fix rendering issue when some points have -z the square draws rlly big on screen
 
 /* -------------------------- defines -------------------------- */
@@ -382,8 +381,8 @@ void init_stuff() {
 	day_cycle = 0;
 	night = 1;
 	cycle_frame_interval = 1;
-	max_day_cycle = 480;
-	night_length = 480;
+	max_day_cycle = 480 * 4;
+	night_length = 480 * 4;
 
 	// - input
 	holding_mouse = 1;
@@ -586,6 +585,81 @@ int collided() {
 			return 1;
 		}
 	}
+
+	// also check chunks in front, behind, left and right to stop getting stuck at chunk boundaries
+	int in_front_chunk_i = IN_FRONT_CHUNK_I(occupied_chunk_index);
+	int behind_chunk_i = BEHIND_CHUNK_I(occupied_chunk_index);
+	int left_chunk_i = LEFT_CHUNK_I(occupied_chunk_index);
+	int right_chunk_i = RIGHT_CHUNK_I(occupied_chunk_index);
+
+	for (int cube_i = 0; cube_i < CUBES_PER_CHUNK; cube_i++) {
+
+		if (chunks[in_front_chunk_i].cubes[cube_i].texture == NULL ||
+			chunks[in_front_chunk_i].cubes[cube_i].texture == water_texture) {
+			continue;
+		}
+
+		// top left front
+		int x = chunks[in_front_chunk_i].pos.x + (CUBE_X(cube_i) * CUBE_WIDTH);
+		int y = chunks[in_front_chunk_i].pos.y + (CUBE_Y(cube_i) * CUBE_WIDTH);
+		int z = chunks[in_front_chunk_i].pos.z + (CUBE_Z(cube_i) * CUBE_WIDTH);
+
+		if (player_inside_cube((vec3_t){x, y, z})) {
+			return 1;
+		}
+	}
+
+	for (int cube_i = 0; cube_i < CUBES_PER_CHUNK; cube_i++) {
+
+		if (chunks[behind_chunk_i].cubes[cube_i].texture == NULL ||
+			chunks[behind_chunk_i].cubes[cube_i].texture == water_texture) {
+			continue;
+		}
+
+		// top left front
+		int x = chunks[behind_chunk_i].pos.x + (CUBE_X(cube_i) * CUBE_WIDTH);
+		int y = chunks[behind_chunk_i].pos.y + (CUBE_Y(cube_i) * CUBE_WIDTH);
+		int z = chunks[behind_chunk_i].pos.z + (CUBE_Z(cube_i) * CUBE_WIDTH);
+
+		if (player_inside_cube((vec3_t){x, y, z})) {
+			return 1;
+		}
+	}
+
+	for (int cube_i = 0; cube_i < CUBES_PER_CHUNK; cube_i++) {
+
+		if (chunks[left_chunk_i].cubes[cube_i].texture == NULL ||
+			chunks[left_chunk_i].cubes[cube_i].texture == water_texture) {
+			continue;
+		}
+
+		// top left front
+		int x = chunks[left_chunk_i].pos.x + (CUBE_X(cube_i) * CUBE_WIDTH);
+		int y = chunks[left_chunk_i].pos.y + (CUBE_Y(cube_i) * CUBE_WIDTH);
+		int z = chunks[left_chunk_i].pos.z + (CUBE_Z(cube_i) * CUBE_WIDTH);
+
+		if (player_inside_cube((vec3_t){x, y, z})) {
+			return 1;
+		}
+	}
+
+	for (int cube_i = 0; cube_i < CUBES_PER_CHUNK; cube_i++) {
+
+		if (chunks[right_chunk_i].cubes[cube_i].texture == NULL ||
+			chunks[right_chunk_i].cubes[cube_i].texture == water_texture) {
+			continue;
+		}
+
+		// top left front
+		int x = chunks[right_chunk_i].pos.x + (CUBE_X(cube_i) * CUBE_WIDTH);
+		int y = chunks[right_chunk_i].pos.y + (CUBE_Y(cube_i) * CUBE_WIDTH);
+		int z = chunks[right_chunk_i].pos.z + (CUBE_Z(cube_i) * CUBE_WIDTH);
+
+		if (player_inside_cube((vec3_t){x, y, z})) {
+			return 1;
+		}
+	}
+
 	return 0;
 }
 
