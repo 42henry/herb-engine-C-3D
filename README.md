@@ -48,7 +48,7 @@ Next steps:
 
 To compile:
  - linux:  
-   - gcc -o DigMake.o -lX11 -lm -O3 -march=native ./linux2.c  
+   - gcc -o DigMake.o -lX11 -lm -O3 -march=native ./linux-platform.c  
  - Windows:
    - gcc -o DigMake.exe -lgdi32 -mwindows -O3 -march=native .\main-windows.c
  - Web:
